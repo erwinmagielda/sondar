@@ -1,0 +1,20 @@
+{
+  "project_name": "Sondar",
+  "version": "0.1.0",
+  "scan": {
+    "auto_detect_target": true,
+    "confirm_target_before_scan": true,
+    "fallback_target": "192.168.56.0/24",
+    "scan_mode": "basic",
+    "timeout_seconds": 120
+  },
+  "output": {
+    "write_json": true,
+    "write_report": true,
+    "use_relative_paths": true
+  },
+  "change_detection": {
+    "enabled": true,
+    "compare_against_previous_scan": true
+  }
+}
