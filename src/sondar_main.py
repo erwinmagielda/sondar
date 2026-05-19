@@ -2,14 +2,14 @@
 Sondar main entry point.
 
 Temporary pre-flight runner used to test project paths, configuration loading,
-and data directory preparation before the scanning workflow is added.
+logging, and data directory preparation before the scanning workflow is added.
 """
 
 import json
 import sys
+
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
-
 from utils.sondar_paths import (
     CONFIG_PATH,
     LOGS_DIR,
@@ -47,20 +47,20 @@ def main() -> int:
         print_section("Paths")
         print_status("*", "Preparing data directories")
         prepare_data_directories()
-        print(f"[+] Scans directory ready: {relative_path(SCANS_DIR)}")
-        print(f"[+] Reports directory ready: {relative_path(REPORTS_DIR)}")
-        print(f"[+] Logs directory ready: {relative_path(LOGS_DIR)}")
+        print_status("+", f"Scans directory ready: {relative_path(SCANS_DIR)}")
+        print_status("+", f"Reports directory ready: {relative_path(REPORTS_DIR)}")
+        print_status("+", f"Logs directory ready: {relative_path(LOGS_DIR)}")
         print()
 
-        print("[*] Initialising logger")
+        print_status("*", "Initialising logger")
         logger, log_path = setup_logger()
-        print(f"[+] Logger ready: {relative_path(log_path)}")
+        print_status("+", f"Logger ready: {relative_path(log_path)}")
         print()
 
-        print("--- Configuration ---")
-        print("[*] Loading configuration")
+        print_section("Configuration")
+        print_status("*", "Loading configuration")
         config = load_config()
-        print(f"[+] Configuration loaded: {relative_path(CONFIG_PATH)}")
+        print_status("+", f"Configuration loaded: {relative_path(CONFIG_PATH)}")
 
         project_name = config.get("project_name", "Sondar")
         version = config.get("version", "0.1.0")
@@ -78,19 +78,25 @@ def main() -> int:
             scan_config.get("scan_mode", "Not configured")
         )
 
-        print(f"[i] Project: {project_name}")
-        print(f"[i] Version: {version}")
-        print(f"[i] Fallback Target: {scan_config.get('fallback_target', 'Not configured')}")
-        print(f"[i] Scan Mode: {scan_config.get('scan_mode', 'Not configured')}")
+        print_status("i", f"Project: {project_name}")
+        print_status("i", f"Version: {version}")
+        print_status(
+            "i",
+            f"Fallback Target: {scan_config.get('fallback_target', 'Not configured')}"
+        )
+        print_status(
+            "i",
+            f"Scan Mode: {scan_config.get('scan_mode', 'Not configured')}"
+        )
         print()
 
-        print("[+] Pre-flight completed")
+        print_status("+", "Pre-flight completed")
         return 0
 
     except Exception as error:
         print()
-        print("[X] Pre-flight failed")
-        print(f"[X] {error}")
+        print_status("X", "Pre-flight failed")
+        print_status("X", str(error))
         return 1
 
 
