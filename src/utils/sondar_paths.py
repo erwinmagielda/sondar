@@ -20,6 +20,7 @@ CONFIG_PATH = CONFIG_DIR / "sondar_config.json"
 SCANS_DIR = DATA_DIR / "scans"
 REPORTS_DIR = DATA_DIR / "reports"
 LOGS_DIR = DATA_DIR / "logs"
+INVENTORY_DIR = DATA_DIR / "inventory"
 
 
 # ------------------------------------------------------------
@@ -52,7 +53,7 @@ def prepare_data_directories() -> None:
     """
     Ensure Sondar data directories exist.
     """
-    for directory in (DATA_DIR, SCANS_DIR, REPORTS_DIR, LOGS_DIR):
+    for directory in (DATA_DIR, SCANS_DIR, REPORTS_DIR, LOGS_DIR, INVENTORY_DIR):
         ensure_directory(directory)
 
 
@@ -67,4 +68,5 @@ def get_required_paths() -> dict[str, Path]:
         "scans_dir": SCANS_DIR,
         "reports_dir": REPORTS_DIR,
         "logs_dir": LOGS_DIR,
+        "inventory_dir": INVENTORY_DIR,
     }

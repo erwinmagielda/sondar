@@ -14,6 +14,7 @@ from pathlib import Path
 from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
 from core.sondar_scanner import run_scan
+from core.sondar_inventory import save_inventory_snapshot
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -273,6 +274,21 @@ def main() -> int:
 
         print_status("+", "Scan XML parsed")
         print_parsed_scan_summary(parsed_scan)
+
+        print_section("Inventory")
+        print_status("*", "Building inventory snapshot")
+
+        inventory_result = save_inventory_snapshot(parsed_scan)
+        inventory = inventory_result["inventory"]
+
+        logger.info("Inventory snapshot saved: %s", inventory_result["display_path"])
+        logger.info("Live hosts recorded: %s", inventory["summary"]["live_hosts_recorded"])
+        logger.info("Open ports total: %s", inventory["summary"]["open_ports_total"])
+
+        print_status("+", f"Inventory snapshot saved: {inventory_result['display_path']}")
+        print_status("i", f"Live Hosts Recorded: {inventory['summary']['live_hosts_recorded']}")
+        print_status("i", f"Open Ports Total: {inventory['summary']['open_ports_total']}")
+        print()
 
         print_status("+", "Pre-flight completed")
         return 0
