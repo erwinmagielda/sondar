@@ -73,7 +73,50 @@ def detect_scan_target(scan_config: dict, logger) -> dict[str, str]:
             "subnet_mask": "Not detected",
             "cidr_target": fallback_target,
         }
-    
+
+
+# ------------------------------------------------------------
+# TARGET CONFIRMATION
+# ------------------------------------------------------------
+
+def is_valid_cidr(target: str) -> bool:
+    """Return True if the provided target is a valid IPv4 CIDR network."""
+    try:
+        network = ipaddress.ip_network(target, strict=False)
+    except ValueError:
+        return False
+
+    return network.version == 4
+
+
+def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logger) -> str:
+    """
+    Confirm the detected scan target with the operator.
+
+    If confirmation is disabled, the suggested target is returned directly.
+    """
+    suggested_target = target_details["cidr_target"]
+    confirm_target = scan_config.get("confirm_target_before_scan", True)
+
+    if not confirm_target:
+        logger.info("Target confirmation disabled")
+        return suggested_target
+
+    response = input(f"Confirm target {suggested_target}? [Y/n]: ").strip().lower()
+
+    if response in ("", "y", "yes"):
+        logger.info("Target confirmed: %s", suggested_target)
+        return suggested_target
+
+    while True:
+        manual_target = input("Enter scan target manually: ").strip()
+
+        if is_valid_cidr(manual_target):
+            logger.info("Manual target selected: %s", manual_target)
+            return manual_target
+
+        print_status("!", "Invalid CIDR target. Example: 192.168.1.0/24")
+
 
 # ------------------------------------------------------------
 # MAIN WORKFLOW
@@ -145,6 +188,9 @@ def main() -> int:
         print_status("i", f"IPv4 Address: {target_details['ipv4_address']}")
         print_status("i", f"Subnet Mask: {target_details['subnet_mask']}")
         print_status("+", f"Suggested Target: {target_details['cidr_target']}")
+        selected_target = confirm_scan_target(target_details, scan_config, logger)
+        print_status("+", f"Selected Target: {selected_target}")
+        logger.info("Confirmed scan target: %s", selected_target)
         print()
 
         print_status("+", "Pre-flight completed")
