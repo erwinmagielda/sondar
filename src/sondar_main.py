@@ -1,18 +1,19 @@
 """
 Sondar main entry point.
 
-Temporary pre-flight runner used to test project paths, configuration loading,
-logging, local target detection, and data directory preparation before the
-scanning workflow is added.
+Temporary workflow runner used to test project paths, configuration loading,
+logging, target detection, scan execution, and XML parsing before inventory,
+change detection, and reporting are added.
 """
 
+import ipaddress
 import json
 import sys
-import ipaddress
+from pathlib import Path
 
 from core.sondar_network import get_primary_target
+from core.sondar_parser import parse_nmap_xml
 from core.sondar_scanner import run_scan
-
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -121,11 +122,59 @@ def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logge
 
 
 # ------------------------------------------------------------
+# PARSED OUTPUT DISPLAY
+# ------------------------------------------------------------
+
+def print_parsed_scan_summary(parsed_scan: dict) -> None:
+    """Print a clean summary of parsed nmap scan data."""
+    runstats = parsed_scan.get("runstats", {})
+    hosts = parsed_scan.get("hosts", [])
+
+    host_counts = runstats.get("hosts", {})
+    elapsed_seconds = runstats.get("elapsed_seconds", "Unknown")
+
+    print_status("i", f"Hosts Up: {host_counts.get('up', 0)}")
+    print_status("i", f"Hosts Down: {host_counts.get('down', 0)}")
+    print_status("i", f"Hosts Total: {host_counts.get('total', 0)}")
+    print_status("i", f"Elapsed Seconds: {elapsed_seconds}")
+
+    if not hosts:
+        print_status("!", "No live hosts parsed from scan output")
+        return
+
+    print()
+
+    for host in hosts:
+        ipv4_address = host.get("ipv4_address", "Unknown")
+        open_ports = host.get("open_ports", [])
+
+        print_status("+", f"Host: {ipv4_address}")
+        print(f"    Open Ports: {len(open_ports)}")
+
+        for port in open_ports:
+            service = port.get("service", {})
+            service_name = service.get("name", "unknown")
+            product = service.get("product", "")
+            version = service.get("version", "")
+
+            service_details = " ".join(
+                value for value in (service_name, product, version) if value
+            )
+
+            print(
+                f"    {port.get('port')}/{port.get('protocol')} "
+                f"| {service_details}"
+            )
+
+        print()
+
+
+# ------------------------------------------------------------
 # MAIN WORKFLOW
 # ------------------------------------------------------------
 
 def main() -> int:
-    """Run the temporary Sondar pre-flight workflow."""
+    """Run the temporary Sondar workflow."""
     print_main_header("Sondar - Pre-flight")
 
     try:
@@ -183,14 +232,14 @@ def main() -> int:
         logger.info("Adapter: %s", target_details["adapter"])
         logger.info("IPv4 address: %s", target_details["ipv4_address"])
         logger.info("Subnet mask: %s", target_details["subnet_mask"])
-        logger.info("Selected target: %s", target_details["cidr_target"])
+        logger.info("Suggested target: %s", target_details["cidr_target"])
 
         print_status("+", f"Target source: {target_details['source']}")
         print_status("i", f"Adapter: {target_details['adapter']}")
         print_status("i", f"IPv4 Address: {target_details['ipv4_address']}")
         print_status("i", f"Subnet Mask: {target_details['subnet_mask']}")
         print_status("+", f"Suggested Target: {target_details['cidr_target']}")
-        
+
         selected_target = confirm_scan_target(target_details, scan_config, logger)
         print_status("+", f"Selected Target: {selected_target}")
         logger.info("Confirmed scan target: %s", selected_target)
@@ -210,6 +259,20 @@ def main() -> int:
         print_status("+", "Scan completed")
         print_status("+", f"Raw scan saved: {scan_result['output_path']}")
         print()
+
+        print_section("Parse Results")
+        print_status("*", "Parsing raw scan XML")
+
+        parsed_scan = parse_nmap_xml(Path(scan_result["output_path"]))
+
+        logger.info("Parsed hosts: %s", len(parsed_scan.get("hosts", [])))
+        logger.info(
+            "Parsed host totals: %s",
+            parsed_scan.get("runstats", {}).get("hosts", {})
+        )
+
+        print_status("+", "Scan XML parsed")
+        print_parsed_scan_summary(parsed_scan)
 
         print_status("+", "Pre-flight completed")
         return 0
