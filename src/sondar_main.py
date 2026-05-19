@@ -2,12 +2,15 @@
 Sondar main entry point.
 
 Temporary pre-flight runner used to test project paths, configuration loading,
-logging, and data directory preparation before the scanning workflow is added.
+logging, local target detection, and data directory preparation before the
+scanning workflow is added.
 """
 
 import json
 import sys
+import ipaddress
 
+from core.sondar_network import get_primary_target
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -34,6 +37,43 @@ def load_config() -> dict:
     with CONFIG_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
 
+
+# ------------------------------------------------------------
+# TARGET SELECTION
+# ------------------------------------------------------------
+
+def detect_scan_target(scan_config: dict, logger) -> dict[str, str]:
+    """
+    Detect the preferred scan target using local interface data.
+
+    Falls back to the configured fallback target when local detection fails or
+    auto-detection is disabled.
+    """
+    fallback_target = scan_config.get("fallback_target", "192.168.1.0/24")
+    auto_detect = scan_config.get("auto_detect_target", True)
+
+    if not auto_detect:
+        logger.info("Target auto-detection disabled")
+        return {
+            "source": "fallback",
+            "adapter": "Auto-detection disabled",
+            "ipv4_address": "Not detected",
+            "subnet_mask": "Not detected",
+            "cidr_target": fallback_target,
+        }
+
+    try:
+        return get_primary_target(fallback_target)
+    except Exception as error:
+        logger.warning("Target auto-detection failed: %s", error)
+        return {
+            "source": "fallback",
+            "adapter": "Detection failed",
+            "ipv4_address": "Not detected",
+            "subnet_mask": "Not detected",
+            "cidr_target": fallback_target,
+        }
+    
 
 # ------------------------------------------------------------
 # MAIN WORKFLOW
@@ -88,6 +128,23 @@ def main() -> int:
             "i",
             f"Scan Mode: {scan_config.get('scan_mode', 'Not configured')}"
         )
+        print()
+
+        print_section("Target Selection")
+        print_status("*", "Detecting local network target")
+        target_details = detect_scan_target(scan_config, logger)
+
+        logger.info("Target source: %s", target_details["source"])
+        logger.info("Adapter: %s", target_details["adapter"])
+        logger.info("IPv4 address: %s", target_details["ipv4_address"])
+        logger.info("Subnet mask: %s", target_details["subnet_mask"])
+        logger.info("Selected target: %s", target_details["cidr_target"])
+
+        print_status("+", f"Target source: {target_details['source']}")
+        print_status("i", f"Adapter: {target_details['adapter']}")
+        print_status("i", f"IPv4 Address: {target_details['ipv4_address']}")
+        print_status("i", f"Subnet Mask: {target_details['subnet_mask']}")
+        print_status("+", f"Suggested Target: {target_details['cidr_target']}")
         print()
 
         print_status("+", "Pre-flight completed")
