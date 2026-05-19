@@ -8,7 +8,6 @@ by the main workflow.
 
 import logging
 from datetime import datetime
-from pathlib import Path
 
 from utils.sondar_paths import LOGS_DIR, relative_path
 
