@@ -9,11 +9,20 @@ Keeps operator-facing terminal output consistent across Sondar workflows.
 # DISPLAY HELPERS
 # ------------------------------------------------------------
 
+def print_logo() -> None:
+    """Print the Sondar ASCII logo."""
+    print(" ___  ___  _  _  ___   _   ___ ")
+    print("/ __|/ _ \\| \\| ||   \\ /_\\ | _ \\")
+    print("\\__ \\ (_) | .` || |) / _ \\|   /")
+    print("|___/\\___/|_|\\_||___/_/ \\_\\_|_\\")
+
+
 def print_main_header(title: str) -> None:
     """Print a main Sondar workflow header."""
     print()
-    print("=" * 60)
-    print(title)
+    print_logo()
+    print()
+    print("Home Network Scan Monitor")
     print("=" * 60)
     print()
 
