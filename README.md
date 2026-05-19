@@ -33,49 +33,43 @@ The project demonstrates:
 
 ## Screenshots
 
-The screenshots below show Sondar running end-to-end. They are included to show the operator workflow, target confirmation, scan profile selection, parsed output, inventory generation, change detection, reporting, and cleanup behaviour.
+The screenshots below show Sondar running as an operator-facing workflow. They are included to demonstrate target confirmation, per-run scan profile selection, scan execution, parsed output, inventory generation, change detection, reporting, and artefact cleanup.
 
 ### Operator Menu
 
-![Sondar operator menu](assets/operator_menu.png)
+![Operator Menu](assets/operator_menu.png)
 
 The operator menu provides a single entry point for running a network scan, clearing generated artefacts, or exiting the tool.
 
-### Target Selection
+### Host Configuration
 
-![Target selection](assets/target_selection.png)
+![Host Configuration](assets/host_configuration.png)
 
-Sondar detects the likely local IPv4 network target, displays the adapter, IP address, subnet mask, and suggested CIDR range, then asks the operator to confirm or override the target.
+The workflow prepares runtime directories, initialises logging, and loads configuration before any scan is executed. Output paths are displayed as repository-relative paths to keep terminal output clean and reviewable.
 
-### Scan Mode Selection
+### Scan Configuration
 
-![Scan mode selection](assets/scan_mode_selection.png)
+![Scan Configuration](assets/scan_configuration.png)
 
-Scan mode selection happens per run. The configured default is shown, but the operator can choose discovery, basic, standard, or deep scanning without permanently changing the configuration file.
+Sondar detects the local IPv4 network target, displays the adapter, address, subnet mask, and suggested CIDR range, then asks the operator to confirm or override the target. Scan mode selection is performed per run, allowing the operator to choose discovery, basic, standard, or deep scanning without permanently changing the configuration file.
 
-### Scan and Parse Results
+### Scan Execution
 
-![Scan and parse results](assets/scan_parse_results.png)
+![Scan Execution](assets/scan_execution.png)
 
-The scan stage runs nmap, saves raw XML output, parses host and service data, and prints a concise summary of live hosts and open ports.
+The scan stage runs the selected nmap profile, saves raw XML output, parses host and service data, and prints a concise summary of live hosts and open ports.
 
-### Inventory and Change Detection
+### Change Detection
 
-![Inventory and change detection](assets/inventory_change_detection.png)
+![Change Detection](assets/change_detection.png)
 
-The inventory stage writes a structured JSON snapshot. Change detection compares the current snapshot against the previous one and reports new hosts, missing hosts, newly open ports, and closed ports.
-
-### Markdown Report
-
-![Markdown report](assets/report_preview.png)
-
-Sondar writes a Markdown report containing the scan summary, host and port table, inventory path, previous snapshot path, and change detection results.
+The inventory stage writes a structured JSON snapshot. Change detection compares the current inventory against the previous snapshot and reports new hosts, missing hosts, newly open ports, and closed ports.
 
 ### Clear Artefacts
 
-![Clear artefacts](assets/clear_artefacts.png)
+![Clear Artefacts](assets/clearing_artefacts.png)
 
-The cleanup workflow removes generated logs, scans, reports, inventory snapshots, and Python cache directories while preserving `.gitkeep` files and repository structure.
+The cleanup workflow removes generated logs, scans, reports, inventory snapshots, and Python cache directories while preserving repository structure.
 
 ---
 

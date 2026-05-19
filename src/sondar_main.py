@@ -395,14 +395,6 @@ def main() -> int:
         logger.info("Configuration loaded: %s", relative_path(CONFIG_PATH))
         logger.info("Project: %s", project_name)
         logger.info("Version: %s", version)
-        logger.info(
-            "Fallback target: %s",
-            scan_config.get("fallback_target", "Not configured")
-        )
-        logger.info(
-            "Default scan mode: %s",
-            scan_config.get("scan_mode", "Not configured")
-        )
 
         print_status("i", f"Project: {project_name}")
         print_status("i", f"Version: {version}")
