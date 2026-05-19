@@ -527,6 +527,12 @@ def print_menu() -> None:
     print()
 
 
+def pause_before_menu() -> None:
+    """Pause before returning to the main menu."""
+    print()
+    input("Press Enter to return to the menu...")
+
+
 def run_menu() -> int:
     """Run the Sondar interactive menu."""
     while True:
@@ -534,10 +540,14 @@ def run_menu() -> int:
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            return main()
+            main()
+            pause_before_menu()
+            continue
 
         if choice == "2":
-            return run_clear_artefacts()
+            run_clear_artefacts()
+            pause_before_menu()
+            continue
 
         if choice == "3":
             print()
@@ -546,7 +556,7 @@ def run_menu() -> int:
 
         print()
         print_status("!", "Invalid option. Select 1, 2, or 3")
-        print()
+        pause_before_menu()
 
 
 # ------------------------------------------------------------

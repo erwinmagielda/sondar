@@ -21,5 +21,4 @@ if errorlevel 1 (
 python src\sondar_main.py
 
 echo.
-pause
 endlocal
