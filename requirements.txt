@@ -1,0 +1,7 @@
+# ------------------------------------------------------------
+# SONDAR REQUIREMENTS
+# ------------------------------------------------------------
+
+# Sondar uses Python standard-library modules only.
+# External dependency: nmap must be installed and available in PATH.
+

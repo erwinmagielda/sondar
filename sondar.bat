@@ -3,6 +3,11 @@ setlocal
 
 title Sondar
 
+REM ------------------------------------------------------------
+REM Sondar Launcher
+REM Launches the interactive Sondar operator menu from the repo root.
+REM ------------------------------------------------------------
+
 cd /d "%~dp0"
 
 echo.
@@ -18,7 +23,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
+where nmap >nul 2>&1
+if errorlevel 1 (
+    echo [X] nmap was not found in PATH
+    echo [i] Install nmap or add it to PATH, then try again
+    echo.
+    pause
+    exit /b 1
+)
+
 python src\sondar_main.py
 
-echo.
 endlocal
