@@ -8,6 +8,7 @@ by the main workflow.
 
 import logging
 from datetime import datetime
+from pathlib import Path
 
 from utils.sondar_paths import LOGS_DIR, relative_path
 
@@ -16,9 +17,9 @@ from utils.sondar_paths import LOGS_DIR, relative_path
 # LOGGER SETUP
 # ------------------------------------------------------------
 
-def setup_logger() -> logging.Logger:
+def setup_logger() -> tuple[logging.Logger, Path]:
     """
-    Configure and return the Sondar logger.
+    Configure and return the Sondar logger and log path.
 
     A timestamped log file is created for each run.
     """
@@ -43,4 +44,4 @@ def setup_logger() -> logging.Logger:
     logger.info("Sondar logger initialised")
     logger.info("Log file: %s", relative_path(log_path))
 
-    return logger
+    return logger, log_path

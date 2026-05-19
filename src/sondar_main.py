@@ -56,8 +56,8 @@ def main() -> int:
         print()
 
         print("[*] Initialising logger")
-        logger = setup_logger()
-        print("[+] Logger ready")
+        logger, log_path = setup_logger()
+        print(f"[+] Logger ready: {relative_path(log_path)}")
         print()
 
         print("--- Configuration ---")
