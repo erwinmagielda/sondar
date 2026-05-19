@@ -327,18 +327,21 @@ def main() -> int:
         print()
 
         print_section("Scan Execution")
-        print_status("*", "Running basic network scan")
 
         scan_mode = scan_config.get("scan_mode", "basic")
-        timeout_seconds = scan_config.get("timeout_seconds", 120)
+        timeout_seconds = scan_config.get("timeout_seconds", 300)
+
+        print_status("*", f"Running {scan_mode} network scan")
 
         scan_result = run_scan(selected_target, scan_mode, timeout_seconds)
 
         logger.info("Scan completed")
+        logger.info("Scan command: %s", scan_result["command"])
         logger.info("Scan output: %s", scan_result["output_path"])
 
         print_status("+", "Scan completed")
         print_status("+", f"Raw scan saved: {scan_result['output_path']}")
+        print_status("i", f"Scan Mode Used: {scan_result['scan_mode']}")
         print()
 
         print_section("Parse Results")

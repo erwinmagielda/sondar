@@ -9,8 +9,21 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from utils.sondar_paths import SCANS_DIR, relative_path
+
+
+# ------------------------------------------------------------
+# SCAN PROFILES
+# ------------------------------------------------------------
+
+SUPPORTED_SCAN_MODES = {
+    "discovery",
+    "basic",
+    "standard",
+    "deep",
+}
 
 
 # ------------------------------------------------------------
@@ -37,15 +50,19 @@ def check_nmap_available() -> str:
 # COMMAND BUILDING
 # ------------------------------------------------------------
 
-def build_scan_command(target: str, scan_mode: str, output_path: Path) -> list[str]:
-    """
-    Build an nmap command for the selected scan mode.
+def build_discovery_command(target: str, output_path: Path) -> list[str]:
+    """Build a host-discovery-only nmap command."""
+    return [
+        "nmap",
+        "-sn",
+        "-oX",
+        str(output_path),
+        target,
+    ]
 
-    The initial basic mode uses common TCP port service detection and XML output.
-    """
-    if scan_mode != "basic":
-        raise ValueError(f"Unsupported scan mode: {scan_mode}")
 
+def build_basic_command(target: str, output_path: Path) -> list[str]:
+    """Build a fast service scan using the top 100 TCP ports."""
     return [
         "nmap",
         "-sV",
@@ -57,11 +74,62 @@ def build_scan_command(target: str, scan_mode: str, output_path: Path) -> list[s
     ]
 
 
+def build_standard_command(target: str, output_path: Path) -> list[str]:
+    """Build a broader service scan using the top 1000 TCP ports."""
+    return [
+        "nmap",
+        "-sV",
+        "--top-ports",
+        "1000",
+        "-oX",
+        str(output_path),
+        target,
+    ]
+
+
+def build_deep_command(target: str, output_path: Path) -> list[str]:
+    """Build a full TCP port range service scan."""
+    return [
+        "nmap",
+        "-sV",
+        "-p-",
+        "-oX",
+        str(output_path),
+        target,
+    ]
+
+
+def build_scan_command(target: str, scan_mode: str, output_path: Path) -> list[str]:
+    """
+    Build an nmap command for the selected scan mode.
+    """
+    if scan_mode not in SUPPORTED_SCAN_MODES:
+        supported_modes = ", ".join(sorted(SUPPORTED_SCAN_MODES))
+        raise ValueError(
+            f"Unsupported scan mode: {scan_mode}. "
+            f"Supported modes: {supported_modes}"
+        )
+
+    if scan_mode == "discovery":
+        return build_discovery_command(target, output_path)
+
+    if scan_mode == "basic":
+        return build_basic_command(target, output_path)
+
+    if scan_mode == "standard":
+        return build_standard_command(target, output_path)
+
+    if scan_mode == "deep":
+        return build_deep_command(target, output_path)
+
+    raise ValueError(f"Unsupported scan mode: {scan_mode}")
+
+
 # ------------------------------------------------------------
 # SCAN EXECUTION
 # ------------------------------------------------------------
 
-def run_scan(target: str, scan_mode: str, timeout_seconds: int) -> dict[str, str | int]:
+def run_scan(target: str, scan_mode: str, timeout_seconds: int) -> dict[str, Any]:
     """
     Run an nmap scan and return scan metadata.
 
@@ -71,7 +139,7 @@ def run_scan(target: str, scan_mode: str, timeout_seconds: int) -> dict[str, str
     SCANS_DIR.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_path = SCANS_DIR / f"sondar_scan_{timestamp}.xml"
+    output_path = SCANS_DIR / f"sondar_scan_{scan_mode}_{timestamp}.xml"
 
     command = build_scan_command(target, scan_mode, output_path)
 
@@ -92,6 +160,7 @@ def run_scan(target: str, scan_mode: str, timeout_seconds: int) -> dict[str, str
     return {
         "target": target,
         "scan_mode": scan_mode,
+        "command": " ".join(command),
         "output_path": relative_path(output_path),
         "return_code": result.returncode,
         "stdout": result.stdout.strip(),
