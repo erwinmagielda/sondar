@@ -73,6 +73,17 @@ def load_config() -> dict:
 
 
 # ------------------------------------------------------------
+# CONFIG SAVING
+# ------------------------------------------------------------
+
+def save_config(config: dict) -> None:
+    """Save Sondar configuration to config/sondar_config.json."""
+    with CONFIG_PATH.open("w", encoding="utf-8") as file:
+        json.dump(config, file, indent=4)
+        file.write("\n")
+
+
+# ------------------------------------------------------------
 # TARGET SELECTION
 # ------------------------------------------------------------
 
@@ -512,6 +523,72 @@ def main() -> int:
 
 
 # ------------------------------------------------------------
+# SCAN MODE SELECTION
+# ------------------------------------------------------------
+
+SCAN_MODE_OPTIONS = {
+    "1": "discovery",
+    "2": "basic",
+    "3": "standard",
+    "4": "deep",
+}
+
+
+def run_scan_mode_selection() -> int:
+    """Allow the operator to update the configured scan mode."""
+    print_main_header("Sondar - Select Scan Mode")
+
+    try:
+        config = load_config()
+        scan_config = config.get("scan", {})
+        current_mode = scan_config.get("scan_mode", "basic")
+        profiles = scan_config.get("profiles", {})
+
+        print_status("i", f"Current Scan Mode: {current_mode}")
+        print()
+
+        print("1) discovery")
+        print(f"   {profiles.get('discovery', {}).get('description', '')}")
+        print("2) basic")
+        print(f"   {profiles.get('basic', {}).get('description', '')}")
+        print("3) standard")
+        print(f"   {profiles.get('standard', {}).get('description', '')}")
+        print("4) deep")
+        print(f"   {profiles.get('deep', {}).get('description', '')}")
+        print("5) Back")
+        print()
+
+        choice = input("Select an option: ").strip()
+
+        if choice == "5":
+            print_status("i", "Scan mode unchanged")
+            return 0
+
+        if choice not in SCAN_MODE_OPTIONS:
+            print_status("!", "Invalid option. Scan mode unchanged")
+            return 1
+
+        selected_mode = SCAN_MODE_OPTIONS[choice]
+
+        if "scan" not in config:
+            config["scan"] = {}
+
+        config["scan"]["scan_mode"] = selected_mode
+        save_config(config)
+
+        print()
+        print_status("+", f"Scan mode updated: {selected_mode}")
+        print_status("+", f"Configuration saved: {relative_path(CONFIG_PATH)}")
+        return 0
+
+    except Exception as error:
+        print()
+        print_status("X", "Scan mode selection failed")
+        print_status("X", str(error))
+        return 1
+
+
+# ------------------------------------------------------------
 # MENU WORKFLOW
 # ------------------------------------------------------------
 
@@ -520,8 +597,9 @@ def print_menu() -> None:
     print_main_header("Sondar")
 
     print("1) Network Scan")
-    print("2) Clear Artefacts")
-    print("3) Exit")
+    print("2) Select Scan Mode")
+    print("3) Clear Artefacts")
+    print("4) Exit")
     print()
     print("=" * 60)
     print()
@@ -545,17 +623,22 @@ def run_menu() -> int:
             continue
 
         if choice == "2":
-            run_clear_artefacts()
+            run_scan_mode_selection()
             pause_before_menu()
             continue
 
         if choice == "3":
+            run_clear_artefacts()
+            pause_before_menu()
+            continue
+
+        if choice == "4":
             print()
             print_status("+", "Sondar closed")
             return 0
 
         print()
-        print_status("!", "Invalid option. Select 1, 2, or 3")
+        print_status("!", "Invalid option. Select 1, 2, 3, or 4")
         pause_before_menu()
 
 
