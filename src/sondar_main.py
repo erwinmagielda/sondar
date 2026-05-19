@@ -12,12 +12,13 @@ import json
 import sys
 from pathlib import Path
 
-
+from core.sondar_detector import detect_inventory_changes
 from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
 from core.sondar_scanner import run_scan
 from core.sondar_inventory import save_inventory_snapshot
 from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
+
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -347,6 +348,73 @@ def main() -> int:
         print_status("+", f"Inventory snapshot saved: {inventory_result['display_path']}")
         print_status("i", f"Live Hosts Recorded: {inventory['summary']['live_hosts_recorded']}")
         print_status("i", f"Open Ports Total: {inventory['summary']['open_ports_total']}")
+        print()
+
+
+        print_section("Change Detection")
+        print_status("*", "Comparing inventory snapshots")
+
+        change_result = detect_inventory_changes(
+            inventory,
+            inventory_result["output_path"],
+        )
+
+        if not change_result["has_previous_snapshot"]:
+            print_status("!", "Previous inventory snapshot not found")
+            print_status("i", "Current inventory stored as baseline")
+            logger.info("Previous inventory snapshot not found")
+        else:
+            changes = change_result["changes"]
+            summary = changes["summary"]
+
+            logger.info("Previous inventory: %s", change_result["previous_snapshot"])
+            logger.info("Current inventory: %s", change_result["current_snapshot"])
+            logger.info("New hosts: %s", summary["new_hosts"])
+            logger.info("Missing hosts: %s", summary["missing_hosts"])
+            logger.info("New open ports: %s", summary["new_open_ports"])
+            logger.info("Closed ports: %s", summary["closed_ports"])
+
+            print_status("+", "Change detection completed")
+            print_status("i", f"Previous Snapshot: {change_result['previous_snapshot']}")
+            print_status("i", f"New Hosts: {summary['new_hosts']}")
+            print_status("i", f"Missing Hosts: {summary['missing_hosts']}")
+            print_status("i", f"New Open Ports: {summary['new_open_ports']}")
+            print_status("i", f"Closed Ports: {summary['closed_ports']}")
+
+            if changes["new_hosts"]:
+                print()
+                print_status("+", "New Hosts")
+                for ipv4_address in changes["new_hosts"]:
+                    print(f"    {ipv4_address}")
+
+            if changes["missing_hosts"]:
+                print()
+                print_status("!", "Missing Hosts")
+                for ipv4_address in changes["missing_hosts"]:
+                    print(f"    {ipv4_address}")
+
+            if changes["new_open_ports"]:
+                print()
+                print_status("+", "New Open Ports")
+                for item in changes["new_open_ports"]:
+                    port = item["port"]
+                    print(
+                        f"    {item['ipv4_address']} "
+                        f"{port['port']}/{port['protocol']} "
+                        f"| {port['service_name']}"
+                    )
+
+            if changes["closed_ports"]:
+                print()
+                print_status("!", "Closed Ports")
+                for item in changes["closed_ports"]:
+                    port = item["port"]
+                    print(
+                        f"    {item['ipv4_address']} "
+                        f"{port['port']}/{port['protocol']} "
+                        f"| {port['service_name']}"
+                    )
+
         print()
 
         print_status("+", "Pre-flight completed")
