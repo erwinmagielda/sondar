@@ -7,6 +7,7 @@ and data directory preparation before the scanning workflow is added.
 
 import json
 import sys
+from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 
 from utils.sondar_paths import (
@@ -40,15 +41,11 @@ def load_config() -> dict:
 
 def main() -> int:
     """Run the temporary Sondar pre-flight workflow."""
-    print()
-    print("=" * 60)
-    print("Sondar - Pre-flight")
-    print("=" * 60)
-    print()
+    print_main_header("Sondar - Pre-flight")
 
     try:
-        print("--- Paths ---")
-        print("[*] Preparing data directories")
+        print_section("Paths")
+        print_status("*", "Preparing data directories")
         prepare_data_directories()
         print(f"[+] Scans directory ready: {relative_path(SCANS_DIR)}")
         print(f"[+] Reports directory ready: {relative_path(REPORTS_DIR)}")
