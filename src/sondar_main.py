@@ -43,6 +43,12 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--scan",
+        action="store_true",
+        help="Run the network scan workflow directly",
+    )
+
+    parser.add_argument(
         "--clear-artefacts",
         action="store_true",
         help="Clear generated runtime artefacts and exit",
@@ -506,6 +512,44 @@ def main() -> int:
 
 
 # ------------------------------------------------------------
+# MENU WORKFLOW
+# ------------------------------------------------------------
+
+def print_menu() -> None:
+    """Print the Sondar main menu."""
+    print_main_header("Sondar")
+
+    print("1) Network Scan")
+    print("2) Clear Artefacts")
+    print("3) Exit")
+    print()
+    print("=" * 60)
+    print()
+
+
+def run_menu() -> int:
+    """Run the Sondar interactive menu."""
+    while True:
+        print_menu()
+        choice = input("Select an option: ").strip()
+
+        if choice == "1":
+            return main()
+
+        if choice == "2":
+            return run_clear_artefacts()
+
+        if choice == "3":
+            print()
+            print_status("+", "Sondar closed")
+            return 0
+
+        print()
+        print_status("!", "Invalid option. Select 1, 2, or 3")
+        print()
+
+
+# ------------------------------------------------------------
 # ENTRY POINT
 # ------------------------------------------------------------
 
@@ -515,4 +559,7 @@ if __name__ == "__main__":
     if args.clear_artefacts:
         sys.exit(run_clear_artefacts())
 
-    sys.exit(main())
+    if args.scan:
+        sys.exit(main())
+
+    sys.exit(run_menu())
