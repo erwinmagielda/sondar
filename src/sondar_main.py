@@ -11,6 +11,8 @@ import sys
 import ipaddress
 
 from core.sondar_network import get_primary_target
+from core.sondar_scanner import run_scan
+
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -188,9 +190,25 @@ def main() -> int:
         print_status("i", f"IPv4 Address: {target_details['ipv4_address']}")
         print_status("i", f"Subnet Mask: {target_details['subnet_mask']}")
         print_status("+", f"Suggested Target: {target_details['cidr_target']}")
+        
         selected_target = confirm_scan_target(target_details, scan_config, logger)
         print_status("+", f"Selected Target: {selected_target}")
         logger.info("Confirmed scan target: %s", selected_target)
+        print()
+
+        print_section("Scan Execution")
+        print_status("*", "Running basic network scan")
+
+        scan_mode = scan_config.get("scan_mode", "basic")
+        timeout_seconds = scan_config.get("timeout_seconds", 120)
+
+        scan_result = run_scan(selected_target, scan_mode, timeout_seconds)
+
+        logger.info("Scan completed")
+        logger.info("Scan output: %s", scan_result["output_path"])
+
+        print_status("+", "Scan completed")
+        print_status("+", f"Raw scan saved: {scan_result['output_path']}")
         print()
 
         print_status("+", "Pre-flight completed")
