@@ -79,7 +79,7 @@ def detect_scan_target(scan_config: dict, logger) -> dict[str, str]:
     Falls back to the configured fallback target when local detection fails or
     auto-detection is disabled.
     """
-    fallback_target = scan_config.get("fallback_target", "192.168.1.0/24")
+    fallback_target = scan_config.get("fallback_target", "").strip()
     auto_detect = scan_config.get("auto_detect_target", True)
 
     if not auto_detect:
@@ -123,10 +123,21 @@ def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logge
     """
     Confirm the detected scan target with the operator.
 
-    If confirmation is disabled, the suggested target is returned directly.
+    If no usable target is detected, prompt the operator for a manual CIDR
+    target when manual entry is allowed.
     """
-    suggested_target = target_details["cidr_target"]
+    suggested_target = target_details.get("cidr_target", "").strip()
     confirm_target = scan_config.get("confirm_target_before_scan", True)
+    allow_manual_target = scan_config.get("allow_manual_target", True)
+
+    if not suggested_target:
+        if not allow_manual_target:
+            raise RuntimeError(
+                "No scan target detected and manual target entry is disabled"
+            )
+
+        print_status("!", "No scan target was auto-detected")
+        return prompt_for_manual_target(logger)
 
     if not confirm_target:
         logger.info("Target confirmation disabled")
@@ -138,6 +149,14 @@ def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logge
         logger.info("Target confirmed: %s", suggested_target)
         return suggested_target
 
+    if not allow_manual_target:
+        raise RuntimeError("Detected target rejected and manual target entry is disabled")
+
+    return prompt_for_manual_target(logger)
+
+
+def prompt_for_manual_target(logger) -> str:
+    """Prompt the operator until a valid IPv4 CIDR target is entered."""
     while True:
         manual_target = input("Enter scan target manually: ").strip()
 
@@ -146,7 +165,6 @@ def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logge
             return manual_target
 
         print_status("!", "Invalid CIDR target. Example: 192.168.1.0/24")
-
 
 # ------------------------------------------------------------
 # PARSED OUTPUT DISPLAY

@@ -4,9 +4,24 @@
   "scan": {
     "auto_detect_target": true,
     "confirm_target_before_scan": true,
-    "fallback_target": "192.168.56.0/24",
+    "allow_manual_target": true,
+    "fallback_target": "",
     "scan_mode": "basic",
-    "timeout_seconds": 120
+    "timeout_seconds": 300,
+    "profiles": {
+      "discovery": {
+        "description": "Host discovery only. Identifies live hosts without port scanning."
+      },
+      "basic": {
+        "description": "Fast service snapshot using the top 100 TCP ports."
+      },
+      "standard": {
+        "description": "Broader service snapshot using the top 1000 TCP ports."
+      },
+      "deep": {
+        "description": "Full TCP port range service scan. Slower, but better coverage."
+      }
+    }
   },
   "output": {
     "write_json": true,
