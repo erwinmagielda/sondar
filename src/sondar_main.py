@@ -1,15 +1,15 @@
 """
 Sondar main entry point.
 
-Temporary workflow runner used to test project paths, configuration loading,
-logging, target detection, scan execution, and XML parsing before inventory,
-change detection, and reporting are added.
+Workflow runner used to test project paths, configuration loading, logging,
+target detection, scan execution, XML parsing, inventory creation, and runtime
+artefact clearing before change detection and reporting are added.
 """
 
+import argparse
 import ipaddress
 import json
 import sys
-import argparse
 from pathlib import Path
 
 
@@ -22,6 +22,7 @@ from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
     CONFIG_PATH,
+    INVENTORY_DIR,
     LOGS_DIR,
     REPORTS_DIR,
     SCANS_DIR,
@@ -202,8 +203,12 @@ def run_clear_artefacts() -> int:
 
     try:
         print_section("Runtime Artefacts")
-        print_status("*", "Clearing generated artefacts")
 
+        print_status("*", "Preparing data directories")
+        prepare_data_directories()
+        print_status("+", "Data directories ready")
+
+        print_status("*", "Clearing generated artefacts")
         removed = clear_runtime_artefacts()
         removed_count = count_removed_files(removed)
 
@@ -238,6 +243,7 @@ def main() -> int:
         print_status("+", f"Scans directory ready: {relative_path(SCANS_DIR)}")
         print_status("+", f"Reports directory ready: {relative_path(REPORTS_DIR)}")
         print_status("+", f"Logs directory ready: {relative_path(LOGS_DIR)}")
+        print_status("+", f"Inventory directory ready: {relative_path(INVENTORY_DIR)}")
         print()
 
         print_status("*", "Initialising logger")
