@@ -7,6 +7,7 @@ and data directory preparation before the scanning workflow is added.
 
 import json
 import sys
+from utils.sondar_logger import setup_logger
 
 from utils.sondar_paths import (
     CONFIG_PATH,
@@ -54,6 +55,11 @@ def main() -> int:
         print(f"[+] Logs directory ready: {relative_path(LOGS_DIR)}")
         print()
 
+        print("[*] Initialising logger")
+        logger = setup_logger()
+        print("[+] Logger ready")
+        print()
+
         print("--- Configuration ---")
         print("[*] Loading configuration")
         config = load_config()
@@ -62,6 +68,18 @@ def main() -> int:
         project_name = config.get("project_name", "Sondar")
         version = config.get("version", "0.1.0")
         scan_config = config.get("scan", {})
+
+        logger.info("Configuration loaded: %s", relative_path(CONFIG_PATH))
+        logger.info("Project: %s", project_name)
+        logger.info("Version: %s", version)
+        logger.info(
+            "Fallback target: %s",
+            scan_config.get("fallback_target", "Not configured")
+        )
+        logger.info(
+            "Scan mode: %s",
+            scan_config.get("scan_mode", "Not configured")
+        )
 
         print(f"[i] Project: {project_name}")
         print(f"[i] Version: {version}")
