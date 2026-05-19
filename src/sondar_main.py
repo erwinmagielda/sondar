@@ -236,8 +236,8 @@ def run_clear_artefacts() -> int:
 # ------------------------------------------------------------
 
 def main() -> int:
-    """Run the temporary Sondar workflow."""
-    print_main_header("Sondar - Pre-flight")
+    """Run the Sondar network scan workflow."""
+    print_main_header("Sondar - Network Scan")
 
     try:
         print_section("Paths")
@@ -438,12 +438,12 @@ def main() -> int:
         print_status("+", f"Report saved: {report_result['display_path']}")
         print()
 
-        print_status("+", "Pre-flight completed")
+        print_status("+", "Network Scan completed")
         return 0
 
     except Exception as error:
         print()
-        print_status("X", "Pre-flight failed")
+        print_status("X", "Network Scan failed")
         print_status("X", str(error))
         return 1
 
