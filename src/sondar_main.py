@@ -1,9 +1,9 @@
 """
 Sondar main entry point.
 
-Workflow runner used to test project paths, configuration loading, logging,
-target detection, scan execution, XML parsing, inventory creation, change
-detection, report generation, and runtime artefact clearing.
+Workflow runner for network scanning, target confirmation, per-run scan mode
+selection, XML parsing, inventory creation, change detection, report generation,
+menu operation, and runtime artefact clearing.
 """
 
 import argparse
@@ -70,17 +70,6 @@ def load_config() -> dict:
 
     with CONFIG_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
-
-
-# ------------------------------------------------------------
-# CONFIG SAVING
-# ------------------------------------------------------------
-
-def save_config(config: dict) -> None:
-    """Save Sondar configuration to config/sondar_config.json."""
-    with CONFIG_PATH.open("w", encoding="utf-8") as file:
-        json.dump(config, file, indent=4)
-        file.write("\n")
 
 
 # ------------------------------------------------------------
@@ -187,6 +176,67 @@ def confirm_scan_target(
 
 
 # ------------------------------------------------------------
+# SCAN MODE SELECTION
+# ------------------------------------------------------------
+
+SCAN_MODE_OPTIONS = {
+    "1": "discovery",
+    "2": "basic",
+    "3": "standard",
+    "4": "deep",
+}
+
+
+def get_scan_mode_option_number(scan_mode: str) -> str:
+    """Return the menu option number for a scan mode."""
+    for option, mode in SCAN_MODE_OPTIONS.items():
+        if mode == scan_mode:
+            return option
+
+    return "2"
+
+
+def select_scan_mode_for_run(scan_config: dict) -> str:
+    """
+    Let the operator select a scan mode for the current run.
+
+    This does not modify config/sondar_config.json.
+    """
+    default_mode = scan_config.get("scan_mode", "basic")
+    default_option = get_scan_mode_option_number(default_mode)
+    profiles = scan_config.get("profiles", {})
+
+    print_section("Scan Mode Selection")
+    print_status("i", f"Default Scan Mode: {default_mode}")
+    print()
+
+    print("1) discovery")
+    print(f"   {profiles.get('discovery', {}).get('description', '')}")
+    print("2) basic")
+    print(f"   {profiles.get('basic', {}).get('description', '')}")
+    print("3) standard")
+    print(f"   {profiles.get('standard', {}).get('description', '')}")
+    print("4) deep")
+    print(f"   {profiles.get('deep', {}).get('description', '')}")
+    print()
+
+    choice = input(f"Select scan mode for this run [{default_option}]: ").strip()
+
+    if choice == "":
+        selected_mode = default_mode
+    elif choice in SCAN_MODE_OPTIONS:
+        selected_mode = SCAN_MODE_OPTIONS[choice]
+    else:
+        print_status("!", "Invalid option. Using default scan mode")
+        selected_mode = default_mode
+
+    print_status("+", f"Selected Scan Mode: {selected_mode}")
+    print()
+
+    return selected_mode
+
+
+# ------------------------------------------------------------
 # PARSED OUTPUT DISPLAY
 # ------------------------------------------------------------
 
@@ -235,41 +285,6 @@ def print_parsed_scan_summary(parsed_scan: dict) -> None:
 
 
 # ------------------------------------------------------------
-# CLEAR ARTEFACTS WORKFLOW
-# ------------------------------------------------------------
-
-def run_clear_artefacts() -> int:
-    """Clear generated Sondar runtime artefacts."""
-    print_main_header("Sondar - Clear Artefacts")
-
-    try:
-        print_section("Runtime Artefacts")
-
-        print_status("*", "Preparing data directories")
-        prepare_data_directories()
-        print_status("+", "Data directories ready")
-
-        print_status("*", "Clearing generated artefacts")
-        removed = clear_runtime_artefacts()
-        removed_count = count_removed_files(removed)
-
-        print_status("+", f"Removed files: {removed_count}")
-
-        for artefact_type, files in removed.items():
-            print_status("i", f"{artefact_type}: {len(files)}")
-
-        print()
-        print_status("+", "Clear Artefacts completed")
-        return 0
-
-    except Exception as error:
-        print()
-        print_status("X", "Clear Artefacts failed")
-        print_status("X", str(error))
-        return 1
-
-
-# ------------------------------------------------------------
 # CHANGE DETECTION DISPLAY
 # ------------------------------------------------------------
 
@@ -308,6 +323,41 @@ def print_change_details(changes: dict) -> None:
                 f"{port['port']}/{port['protocol']} "
                 f"| {port['service_name']}"
             )
+
+
+# ------------------------------------------------------------
+# CLEAR ARTEFACTS WORKFLOW
+# ------------------------------------------------------------
+
+def run_clear_artefacts() -> int:
+    """Clear generated Sondar runtime artefacts."""
+    print_main_header("Sondar - Clear Artefacts")
+
+    try:
+        print_section("Runtime Artefacts")
+
+        print_status("*", "Preparing data directories")
+        prepare_data_directories()
+        print_status("+", "Data directories ready")
+
+        print_status("*", "Clearing generated artefacts")
+        removed = clear_runtime_artefacts()
+        removed_count = count_removed_files(removed)
+
+        print_status("+", f"Removed files: {removed_count}")
+
+        for artefact_type, files in removed.items():
+            print_status("i", f"{artefact_type}: {len(files)}")
+
+        print()
+        print_status("+", "Clear Artefacts completed")
+        return 0
+
+    except Exception as error:
+        print()
+        print_status("X", "Clear Artefacts failed")
+        print_status("X", str(error))
+        return 1
 
 
 # ------------------------------------------------------------
@@ -350,7 +400,7 @@ def main() -> int:
             scan_config.get("fallback_target", "Not configured")
         )
         logger.info(
-            "Scan mode: %s",
+            "Default scan mode: %s",
             scan_config.get("scan_mode", "Not configured")
         )
 
@@ -362,7 +412,7 @@ def main() -> int:
         )
         print_status(
             "i",
-            f"Scan Mode: {scan_config.get('scan_mode', 'Not configured')}"
+            f"Default Scan Mode: {scan_config.get('scan_mode', 'Not configured')}"
         )
         print()
 
@@ -387,11 +437,12 @@ def main() -> int:
         logger.info("Confirmed scan target: %s", selected_target)
         print()
 
-        print_section("Scan Execution")
-
-        scan_mode = scan_config.get("scan_mode", "basic")
+        scan_mode = select_scan_mode_for_run(scan_config)
         timeout_seconds = scan_config.get("timeout_seconds", 300)
 
+        logger.info("Selected scan mode for run: %s", scan_mode)
+
+        print_section("Scan Execution")
         print_status("*", f"Running {scan_mode} network scan")
 
         scan_result = run_scan(selected_target, scan_mode, timeout_seconds)
@@ -523,72 +574,6 @@ def main() -> int:
 
 
 # ------------------------------------------------------------
-# SCAN MODE SELECTION
-# ------------------------------------------------------------
-
-SCAN_MODE_OPTIONS = {
-    "1": "discovery",
-    "2": "basic",
-    "3": "standard",
-    "4": "deep",
-}
-
-
-def run_scan_mode_selection() -> int:
-    """Allow the operator to update the configured scan mode."""
-    print_main_header("Sondar - Select Scan Mode")
-
-    try:
-        config = load_config()
-        scan_config = config.get("scan", {})
-        current_mode = scan_config.get("scan_mode", "basic")
-        profiles = scan_config.get("profiles", {})
-
-        print_status("i", f"Current Scan Mode: {current_mode}")
-        print()
-
-        print("1) discovery")
-        print(f"   {profiles.get('discovery', {}).get('description', '')}")
-        print("2) basic")
-        print(f"   {profiles.get('basic', {}).get('description', '')}")
-        print("3) standard")
-        print(f"   {profiles.get('standard', {}).get('description', '')}")
-        print("4) deep")
-        print(f"   {profiles.get('deep', {}).get('description', '')}")
-        print("5) Back")
-        print()
-
-        choice = input("Select an option: ").strip()
-
-        if choice == "5":
-            print_status("i", "Scan mode unchanged")
-            return 0
-
-        if choice not in SCAN_MODE_OPTIONS:
-            print_status("!", "Invalid option. Scan mode unchanged")
-            return 1
-
-        selected_mode = SCAN_MODE_OPTIONS[choice]
-
-        if "scan" not in config:
-            config["scan"] = {}
-
-        config["scan"]["scan_mode"] = selected_mode
-        save_config(config)
-
-        print()
-        print_status("+", f"Scan mode updated: {selected_mode}")
-        print_status("+", f"Configuration saved: {relative_path(CONFIG_PATH)}")
-        return 0
-
-    except Exception as error:
-        print()
-        print_status("X", "Scan mode selection failed")
-        print_status("X", str(error))
-        return 1
-
-
-# ------------------------------------------------------------
 # MENU WORKFLOW
 # ------------------------------------------------------------
 
@@ -597,9 +582,8 @@ def print_menu() -> None:
     print_main_header("Sondar")
 
     print("1) Network Scan")
-    print("2) Select Scan Mode")
-    print("3) Clear Artefacts")
-    print("4) Exit")
+    print("2) Clear Artefacts")
+    print("3) Exit")
     print()
     print("=" * 60)
     print()
@@ -623,22 +607,17 @@ def run_menu() -> int:
             continue
 
         if choice == "2":
-            run_scan_mode_selection()
-            pause_before_menu()
-            continue
-
-        if choice == "3":
             run_clear_artefacts()
             pause_before_menu()
             continue
 
-        if choice == "4":
+        if choice == "3":
             print()
             print_status("+", "Sondar closed")
             return 0
 
         print()
-        print_status("!", "Invalid option. Select 1, 2, 3, or 4")
+        print_status("!", "Invalid option. Select 1, 2, or 3")
         pause_before_menu()
 
 

@@ -1,35 +1,35 @@
 {
-  "project_name": "Sondar",
-  "version": "0.1.0",
-  "scan": {
-    "auto_detect_target": true,
-    "confirm_target_before_scan": true,
-    "allow_manual_target": true,
-    "fallback_target": "",
-    "scan_mode": "basic",
-    "timeout_seconds": 300,
-    "profiles": {
-      "discovery": {
-        "description": "Host discovery only. Identifies live hosts without port scanning."
-      },
-      "basic": {
-        "description": "Fast service snapshot using the top 100 TCP ports."
-      },
-      "standard": {
-        "description": "Broader service snapshot using the top 1000 TCP ports."
-      },
-      "deep": {
-        "description": "Full TCP port range service scan. Slower, but better coverage."
-      }
+    "project_name": "Sondar",
+    "version": "0.1.0",
+    "scan": {
+        "auto_detect_target": true,
+        "confirm_target_before_scan": true,
+        "allow_manual_target": true,
+        "fallback_target": "",
+        "scan_mode": "basic",
+        "timeout_seconds": 300,
+        "profiles": {
+            "discovery": {
+                "description": "Host discovery only. Identifies live hosts without port scanning."
+            },
+            "basic": {
+                "description": "Fast service snapshot using the top 100 TCP ports."
+            },
+            "standard": {
+                "description": "Broader service snapshot using the top 1000 TCP ports."
+            },
+            "deep": {
+                "description": "Full TCP port range service scan. Slower, but better coverage."
+            }
+        }
+    },
+    "output": {
+        "write_json": true,
+        "write_report": true,
+        "use_relative_paths": true
+    },
+    "change_detection": {
+        "enabled": true,
+        "compare_against_previous_scan": true
     }
-  },
-  "output": {
-    "write_json": true,
-    "write_report": true,
-    "use_relative_paths": true
-  },
-  "change_detection": {
-    "enabled": true,
-    "compare_against_previous_scan": true
-  }
 }
