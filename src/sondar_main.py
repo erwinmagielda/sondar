@@ -10,14 +10,16 @@ import argparse
 import ipaddress
 import json
 import sys
-from pathlib import Path
 
 from core.sondar_detector import detect_inventory_changes
 from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
+from core.sondar_reporter import save_markdown_report
 from core.sondar_scanner import run_scan
 from core.sondar_inventory import save_inventory_snapshot
 from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
+
+from pathlib import Path
 
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
@@ -415,6 +417,25 @@ def main() -> int:
                         f"| {port['service_name']}"
                     )
 
+        print()
+
+        print_section("Report")
+        print_status("*", "Writing Markdown report")
+
+        report_result = save_markdown_report(
+            project_name,
+            version,
+            selected_target,
+            scan_config,
+            scan_result,
+            parsed_scan,
+            inventory_result,
+            change_result,
+        )
+
+        logger.info("Markdown report saved: %s", report_result["display_path"])
+
+        print_status("+", f"Report saved: {report_result['display_path']}")
         print()
 
         print_status("+", "Pre-flight completed")
