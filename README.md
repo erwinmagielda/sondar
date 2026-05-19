@@ -1,6 +1,6 @@
 # Sondar
 
-**Home network visibility, scan inventory, and change monitoring.**
+**Network visibility workflow for host discovery, service inventory, and change detection.**
 
 Sondar is a Python-based network visibility tool for authorised home and lab environments. It detects a local network target, asks the operator to confirm or override it, runs a selected nmap scan profile, parses XML scan output, builds inventory snapshots, compares changes between runs, and generates Markdown reports.
 
