@@ -6,11 +6,39 @@ structured JSON for later change detection and reporting.
 """
 
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from utils.sondar_paths import INVENTORY_DIR, relative_path
+
+
+# ------------------------------------------------------------
+# SCAN MODE HELPERS
+# ------------------------------------------------------------
+
+def infer_scan_mode(scan_args: str) -> str:
+    """Infer the Sondar scan mode from nmap arguments."""
+    padded_args = f" {scan_args} "
+
+    if " -sn " in padded_args:
+        return "discovery"
+
+    if "--top-ports 1000" in scan_args:
+        return "standard"
+
+    if "--top-ports 100" in scan_args:
+        return "basic"
+
+    if " -p- " in padded_args:
+        return "deep"
+
+    return "unknown"
+
+
+def port_scan_enabled(scan_mode: str) -> bool:
+    """Return True when the scan mode collected port data."""
+    return scan_mode != "discovery"
 
 
 # ------------------------------------------------------------
@@ -66,6 +94,10 @@ def build_inventory_snapshot(parsed_scan: dict[str, Any]) -> dict[str, Any]:
     runstats = parsed_scan.get("runstats", {})
     metadata = parsed_scan.get("metadata", {})
 
+    scan_args = metadata.get("args", "")
+    scan_mode = infer_scan_mode(scan_args)
+    ports_enabled = port_scan_enabled(scan_mode)
+
     normalised_hosts = [normalise_host(host) for host in hosts]
 
     return {
@@ -74,8 +106,10 @@ def build_inventory_snapshot(parsed_scan: dict[str, Any]) -> dict[str, Any]:
             "source": "nmap_xml",
             "scanner": metadata.get("scanner", "nmap"),
             "scanner_version": metadata.get("version", ""),
+            "scan_mode": scan_mode,
+            "port_scan_enabled": ports_enabled,
             "scan_start": metadata.get("start_string", ""),
-            "scan_args": metadata.get("args", ""),
+            "scan_args": scan_args,
             "source_xml": metadata.get("xml_path", ""),
         },
         "summary": {

@@ -16,19 +16,6 @@ from utils.sondar_paths import REPORTS_DIR, relative_path
 # FORMAT HELPERS
 # ------------------------------------------------------------
 
-def format_service_details(port: dict[str, Any]) -> str:
-    """Return a compact service description for report output."""
-    service = port.get("service", {})
-
-    values = [
-        service.get("name", "unknown"),
-        service.get("product", ""),
-        service.get("version", ""),
-    ]
-
-    return " ".join(value for value in values if value)
-
-
 def format_change_port(item: dict[str, Any]) -> str:
     """Return a compact changed-port description."""
     port = item.get("port", {})
@@ -68,6 +55,7 @@ def build_scan_summary_section(
     runstats = parsed_scan.get("runstats", {})
     host_counts = runstats.get("hosts", {})
     inventory = inventory_result.get("inventory", {})
+    inventory_metadata = inventory.get("inventory_metadata", {})
     inventory_summary = inventory.get("summary", {})
 
     return [
@@ -75,6 +63,8 @@ def build_scan_summary_section(
         "",
         f"- Target: `{selected_target}`",
         f"- Scan Mode: `{scan_config.get('scan_mode', 'basic')}`",
+        f"- Inventory Scan Mode: `{inventory_metadata.get('scan_mode', 'unknown')}`",
+        f"- Port Scan Enabled: {inventory_metadata.get('port_scan_enabled', True)}",
         f"- Raw XML: `{scan_result.get('output_path', '')}`",
         f"- Inventory Snapshot: `{inventory_result.get('display_path', '')}`",
         f"- Hosts Up: {host_counts.get('up', 0)}",
@@ -155,6 +145,10 @@ def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
         "",
     ]
 
+    changes = change_result.get("changes", {})
+    summary = changes.get("summary", {})
+    port_comparison_enabled = summary.get("port_comparison_enabled", True)
+
     if not change_result.get("has_previous_snapshot", False):
         lines.extend(
             [
@@ -162,12 +156,20 @@ def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
                 "",
                 "The current inventory has been stored as the baseline for future comparisons.",
                 "",
+                f"- Port Change Comparison: {'Enabled' if port_comparison_enabled else 'Skipped'}",
+                "",
             ]
         )
-        return lines
 
-    changes = change_result.get("changes", {})
-    summary = changes.get("summary", {})
+        if not port_comparison_enabled:
+            lines.extend(
+                [
+                    "Port change comparison was skipped because the current snapshot did not include port scan data.",
+                    "",
+                ]
+            )
+
+        return lines
 
     lines.extend(
         [
@@ -177,9 +179,18 @@ def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
             f"- Missing Hosts: {summary.get('missing_hosts', 0)}",
             f"- New Open Ports: {summary.get('new_open_ports', 0)}",
             f"- Closed Ports: {summary.get('closed_ports', 0)}",
+            f"- Port Change Comparison: {'Enabled' if port_comparison_enabled else 'Skipped'}",
             "",
         ]
     )
+
+    if not port_comparison_enabled:
+        lines.extend(
+            [
+                "Port change comparison was skipped because one or more snapshots did not include port scan data.",
+                "",
+            ]
+        )
 
     if changes.get("new_hosts"):
         lines.extend(["### New Hosts", ""])
@@ -193,13 +204,13 @@ def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
             lines.append(f"- {ipv4_address}")
         lines.append("")
 
-    if changes.get("new_open_ports"):
+    if port_comparison_enabled and changes.get("new_open_ports"):
         lines.extend(["### New Open Ports", ""])
         for item in changes["new_open_ports"]:
             lines.append(f"- {format_change_port(item)}")
         lines.append("")
 
-    if changes.get("closed_ports"):
+    if port_comparison_enabled and changes.get("closed_ports"):
         lines.extend(["### Closed Ports", ""])
         for item in changes["closed_ports"]:
             lines.append(f"- {format_change_port(item)}")

@@ -2,25 +2,23 @@
 Sondar main entry point.
 
 Workflow runner used to test project paths, configuration loading, logging,
-target detection, scan execution, XML parsing, inventory creation, and runtime
-artefact clearing before change detection and reporting are added.
+target detection, scan execution, XML parsing, inventory creation, change
+detection, report generation, and runtime artefact clearing.
 """
 
 import argparse
 import ipaddress
 import json
 import sys
+from pathlib import Path
 
+from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
 from core.sondar_detector import detect_inventory_changes
+from core.sondar_inventory import save_inventory_snapshot
 from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
 from core.sondar_reporter import save_markdown_report
 from core.sondar_scanner import run_scan
-from core.sondar_inventory import save_inventory_snapshot
-from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
-
-from pathlib import Path
-
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -119,7 +117,23 @@ def is_valid_cidr(target: str) -> bool:
     return network.version == 4
 
 
-def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logger) -> str:
+def prompt_for_manual_target(logger) -> str:
+    """Prompt the operator until a valid IPv4 CIDR target is entered."""
+    while True:
+        manual_target = input("Enter scan target manually: ").strip()
+
+        if is_valid_cidr(manual_target):
+            logger.info("Manual target selected: %s", manual_target)
+            return manual_target
+
+        print_status("!", "Invalid CIDR target. Example: 192.168.1.0/24")
+
+
+def confirm_scan_target(
+    target_details: dict[str, str],
+    scan_config: dict,
+    logger,
+) -> str:
     """
     Confirm the detected scan target with the operator.
 
@@ -154,17 +168,6 @@ def confirm_scan_target(target_details: dict[str, str], scan_config: dict, logge
 
     return prompt_for_manual_target(logger)
 
-
-def prompt_for_manual_target(logger) -> str:
-    """Prompt the operator until a valid IPv4 CIDR target is entered."""
-    while True:
-        manual_target = input("Enter scan target manually: ").strip()
-
-        if is_valid_cidr(manual_target):
-            logger.info("Manual target selected: %s", manual_target)
-            return manual_target
-
-        print_status("!", "Invalid CIDR target. Example: 192.168.1.0/24")
 
 # ------------------------------------------------------------
 # PARSED OUTPUT DISPLAY
@@ -250,6 +253,47 @@ def run_clear_artefacts() -> int:
 
 
 # ------------------------------------------------------------
+# CHANGE DETECTION DISPLAY
+# ------------------------------------------------------------
+
+def print_change_details(changes: dict) -> None:
+    """Print detailed change detection results."""
+    if changes["new_hosts"]:
+        print()
+        print_status("+", "New Hosts")
+        for ipv4_address in changes["new_hosts"]:
+            print(f"    {ipv4_address}")
+
+    if changes["missing_hosts"]:
+        print()
+        print_status("!", "Missing Hosts")
+        for ipv4_address in changes["missing_hosts"]:
+            print(f"    {ipv4_address}")
+
+    if changes["new_open_ports"]:
+        print()
+        print_status("+", "New Open Ports")
+        for item in changes["new_open_ports"]:
+            port = item["port"]
+            print(
+                f"    {item['ipv4_address']} "
+                f"{port['port']}/{port['protocol']} "
+                f"| {port['service_name']}"
+            )
+
+    if changes["closed_ports"]:
+        print()
+        print_status("!", "Closed Ports")
+        for item in changes["closed_ports"]:
+            port = item["port"]
+            print(
+                f"    {item['ipv4_address']} "
+                f"{port['port']}/{port['protocol']} "
+                f"| {port['service_name']}"
+            )
+
+
+# ------------------------------------------------------------
 # MAIN WORKFLOW
 # ------------------------------------------------------------
 
@@ -297,7 +341,7 @@ def main() -> int:
         print_status("i", f"Version: {version}")
         print_status(
             "i",
-            f"Fallback Target: {scan_config.get('fallback_target', 'Not configured')}"
+            f"Fallback Target: {scan_config.get('fallback_target', '')}"
         )
         print_status(
             "i",
@@ -369,10 +413,12 @@ def main() -> int:
         logger.info("Open ports total: %s", inventory["summary"]["open_ports_total"])
 
         print_status("+", f"Inventory snapshot saved: {inventory_result['display_path']}")
-        print_status("i", f"Live Hosts Recorded: {inventory['summary']['live_hosts_recorded']}")
+        print_status(
+            "i",
+            f"Live Hosts Recorded: {inventory['summary']['live_hosts_recorded']}"
+        )
         print_status("i", f"Open Ports Total: {inventory['summary']['open_ports_total']}")
         print()
-
 
         print_section("Change Detection")
         print_status("*", "Comparing inventory snapshots")
@@ -383,8 +429,19 @@ def main() -> int:
         )
 
         if not change_result["has_previous_snapshot"]:
+            changes = change_result["changes"]
+            summary = changes["summary"]
+
             print_status("!", "Previous inventory snapshot not found")
             print_status("i", "Current inventory stored as baseline")
+
+            if not summary.get("port_comparison_enabled", True):
+                print_status("i", "Port Change Comparison: Skipped")
+                print_status(
+                    "i",
+                    "Reason: current snapshot did not include port scan data"
+                )
+
             logger.info("Previous inventory snapshot not found")
         else:
             changes = change_result["changes"]
@@ -396,6 +453,10 @@ def main() -> int:
             logger.info("Missing hosts: %s", summary["missing_hosts"])
             logger.info("New open ports: %s", summary["new_open_ports"])
             logger.info("Closed ports: %s", summary["closed_ports"])
+            logger.info(
+                "Port comparison enabled: %s",
+                summary.get("port_comparison_enabled", True)
+            )
 
             print_status("+", "Change detection completed")
             print_status("i", f"Previous Snapshot: {change_result['previous_snapshot']}")
@@ -404,39 +465,14 @@ def main() -> int:
             print_status("i", f"New Open Ports: {summary['new_open_ports']}")
             print_status("i", f"Closed Ports: {summary['closed_ports']}")
 
-            if changes["new_hosts"]:
-                print()
-                print_status("+", "New Hosts")
-                for ipv4_address in changes["new_hosts"]:
-                    print(f"    {ipv4_address}")
+            if not summary.get("port_comparison_enabled", True):
+                print_status("i", "Port Change Comparison: Skipped")
+                print_status(
+                    "i",
+                    "Reason: one or more snapshots did not include port scan data"
+                )
 
-            if changes["missing_hosts"]:
-                print()
-                print_status("!", "Missing Hosts")
-                for ipv4_address in changes["missing_hosts"]:
-                    print(f"    {ipv4_address}")
-
-            if changes["new_open_ports"]:
-                print()
-                print_status("+", "New Open Ports")
-                for item in changes["new_open_ports"]:
-                    port = item["port"]
-                    print(
-                        f"    {item['ipv4_address']} "
-                        f"{port['port']}/{port['protocol']} "
-                        f"| {port['service_name']}"
-                    )
-
-            if changes["closed_ports"]:
-                print()
-                print_status("!", "Closed Ports")
-                for item in changes["closed_ports"]:
-                    port = item["port"]
-                    print(
-                        f"    {item['ipv4_address']} "
-                        f"{port['port']}/{port['protocol']} "
-                        f"| {port['service_name']}"
-                    )
+            print_change_details(changes)
 
         print()
 

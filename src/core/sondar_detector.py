@@ -106,6 +106,27 @@ def describe_port(port: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def inventory_has_port_data(inventory: dict[str, Any]) -> bool:
+    """
+    Return True if the inventory snapshot includes port scan data.
+    """
+    metadata = inventory.get("inventory_metadata", {})
+    return metadata.get("port_scan_enabled", True)
+
+
+def should_compare_ports(
+    previous_inventory: dict[str, Any],
+    current_inventory: dict[str, Any],
+) -> bool:
+    """
+    Return True when both snapshots contain port scan data.
+    """
+    return (
+        inventory_has_port_data(previous_inventory)
+        and inventory_has_port_data(current_inventory)
+    )
+
+
 # ------------------------------------------------------------
 # CHANGE DETECTION
 # ------------------------------------------------------------
@@ -127,33 +148,36 @@ def compare_inventories(
     missing_hosts = sorted(previous_ips - current_ips)
     common_hosts = sorted(previous_ips & current_ips)
 
+    compare_ports = should_compare_ports(previous_inventory, current_inventory)
+
     new_open_ports = []
     closed_ports = []
 
-    for ipv4_address in common_hosts:
-        previous_ports = index_ports(previous_hosts[ipv4_address])
-        current_ports = index_ports(current_hosts[ipv4_address])
+    if compare_ports:
+        for ipv4_address in common_hosts:
+            previous_ports = index_ports(previous_hosts[ipv4_address])
+            current_ports = index_ports(current_hosts[ipv4_address])
 
-        previous_port_keys = set(previous_ports.keys())
-        current_port_keys = set(current_ports.keys())
+            previous_port_keys = set(previous_ports.keys())
+            current_port_keys = set(current_ports.keys())
 
-        for port_key in sorted(current_port_keys - previous_port_keys):
-            new_open_ports.append(
-                {
-                    "ipv4_address": ipv4_address,
-                    "port_key": port_key,
-                    "port": describe_port(current_ports[port_key]),
-                }
-            )
+            for port_key in sorted(current_port_keys - previous_port_keys):
+                new_open_ports.append(
+                    {
+                        "ipv4_address": ipv4_address,
+                        "port_key": port_key,
+                        "port": describe_port(current_ports[port_key]),
+                    }
+                )
 
-        for port_key in sorted(previous_port_keys - current_port_keys):
-            closed_ports.append(
-                {
-                    "ipv4_address": ipv4_address,
-                    "port_key": port_key,
-                    "port": describe_port(previous_ports[port_key]),
-                }
-            )
+            for port_key in sorted(previous_port_keys - current_port_keys):
+                closed_ports.append(
+                    {
+                        "ipv4_address": ipv4_address,
+                        "port_key": port_key,
+                        "port": describe_port(previous_ports[port_key]),
+                    }
+                )
 
     return {
         "new_hosts": new_hosts,
@@ -165,11 +189,15 @@ def compare_inventories(
             "missing_hosts": len(missing_hosts),
             "new_open_ports": len(new_open_ports),
             "closed_ports": len(closed_ports),
+            "port_comparison_enabled": compare_ports,
         },
     }
 
 
-def detect_inventory_changes(current_inventory: dict[str, Any], current_path: Path) -> dict[str, Any]:
+def detect_inventory_changes(
+    current_inventory: dict[str, Any],
+    current_path: Path,
+) -> dict[str, Any]:
     """
     Detect changes between the current inventory and the previous snapshot.
     """
@@ -190,6 +218,9 @@ def detect_inventory_changes(current_inventory: dict[str, Any], current_path: Pa
                     "missing_hosts": 0,
                     "new_open_ports": 0,
                     "closed_ports": 0,
+                    "port_comparison_enabled": inventory_has_port_data(
+                        current_inventory
+                    ),
                 },
             },
         }
