@@ -9,12 +9,15 @@ change detection, and reporting are added.
 import ipaddress
 import json
 import sys
+import argparse
 from pathlib import Path
+
 
 from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
 from core.sondar_scanner import run_scan
 from core.sondar_inventory import save_inventory_snapshot
+from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
 from utils.sondar_banner import print_main_header, print_section, print_status
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
@@ -25,6 +28,25 @@ from utils.sondar_paths import (
     prepare_data_directories,
     relative_path,
 )
+
+
+# ------------------------------------------------------------
+# ARGUMENT PARSING
+# ------------------------------------------------------------
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse Sondar command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Sondar home network scanning workflow"
+    )
+
+    parser.add_argument(
+        "--clear-artefacts",
+        action="store_true",
+        help="Clear generated runtime artefacts and exit",
+    )
+
+    return parser.parse_args()
 
 
 # ------------------------------------------------------------
@@ -171,6 +193,37 @@ def print_parsed_scan_summary(parsed_scan: dict) -> None:
 
 
 # ------------------------------------------------------------
+# CLEAR ARTEFACTS WORKFLOW
+# ------------------------------------------------------------
+
+def run_clear_artefacts() -> int:
+    """Clear generated Sondar runtime artefacts."""
+    print_main_header("Sondar - Clear Artefacts")
+
+    try:
+        print_section("Runtime Artefacts")
+        print_status("*", "Clearing generated artefacts")
+
+        removed = clear_runtime_artefacts()
+        removed_count = count_removed_files(removed)
+
+        print_status("+", f"Removed files: {removed_count}")
+
+        for artefact_type, files in removed.items():
+            print_status("i", f"{artefact_type}: {len(files)}")
+
+        print()
+        print_status("+", "Clear Artefacts completed")
+        return 0
+
+    except Exception as error:
+        print()
+        print_status("X", "Clear Artefacts failed")
+        print_status("X", str(error))
+        return 1
+
+
+# ------------------------------------------------------------
 # MAIN WORKFLOW
 # ------------------------------------------------------------
 
@@ -305,4 +358,9 @@ def main() -> int:
 # ------------------------------------------------------------
 
 if __name__ == "__main__":
+    args = parse_arguments()
+
+    if args.clear_artefacts:
+        sys.exit(run_clear_artefacts())
+
     sys.exit(main())
