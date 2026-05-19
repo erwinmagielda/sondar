@@ -28,10 +28,12 @@ env/
 data/logs/*
 data/scans/*
 data/reports/*
+data/inventory/*
 
 !data/logs/.gitkeep
 !data/scans/.gitkeep
 !data/reports/.gitkeep
+!data/inventory/.gitkeep
 
 
 # ------------------------------------------------------------
