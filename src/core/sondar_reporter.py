@@ -39,6 +39,14 @@ def format_port_comparison_state(value: bool) -> str:
     return "enabled" if value else "skipped"
 
 
+def format_hostnames(hostnames: list[str]) -> str:
+    """Return a readable hostnames value."""
+    if not hostnames:
+        return "none"
+
+    return ", ".join(hostnames)
+
+
 # ------------------------------------------------------------
 # REPORT SECTIONS
 # ------------------------------------------------------------
@@ -46,7 +54,7 @@ def format_port_comparison_state(value: bool) -> str:
 def build_report_header(project_name: str, version: str) -> list[str]:
     """Build the report title section."""
     return [
-        f"# {project_name} scan report",
+        f"# {project_name} Scan Report",
         "",
         f"Generated UTC: {datetime.now(UTC).isoformat()}",
         f"Tool version: {version}",
@@ -76,7 +84,7 @@ def build_scan_summary_section(
     port_scan_enabled = inventory_metadata.get("port_scan_enabled", True)
 
     return [
-        "## Scan summary",
+        "## Scan Summary",
         "",
         f"- Target: `{selected_target}`",
         f"- Scan mode: `{selected_scan_mode}`",
@@ -97,7 +105,7 @@ def build_scan_summary_section(
 def build_host_inventory_section(inventory: dict[str, Any]) -> list[str]:
     """Build the host inventory section."""
     lines = [
-        "## Host inventory",
+        "## Host Inventory",
         "",
     ]
 
@@ -115,13 +123,14 @@ def build_host_inventory_section(inventory: dict[str, Any]) -> list[str]:
     for host in hosts:
         ipv4_address = host.get("ipv4_address", "Unknown")
         open_ports = host.get("open_ports", [])
+        hostnames = host.get("hostnames", [])
 
         lines.extend(
             [
                 f"### {ipv4_address}",
                 "",
                 f"- Status: {host.get('status', 'unknown')}",
-                f"- Hostnames: {', '.join(host.get('hostnames', [])) or 'none'}",
+                f"- Hostnames: {format_hostnames(hostnames)}",
                 f"- Open ports: {len(open_ports)}",
                 "",
             ]
@@ -158,7 +167,7 @@ def build_host_inventory_section(inventory: dict[str, Any]) -> list[str]:
 def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
     """Build the change detection section."""
     lines = [
-        "## Change detection",
+        "## Change Detection",
         "",
     ]
 
@@ -211,25 +220,25 @@ def build_change_detection_section(change_result: dict[str, Any]) -> list[str]:
         )
 
     if changes.get("new_hosts"):
-        lines.extend(["### New hosts", ""])
+        lines.extend(["### New Hosts", ""])
         for ipv4_address in changes["new_hosts"]:
             lines.append(f"- {ipv4_address}")
         lines.append("")
 
     if changes.get("missing_hosts"):
-        lines.extend(["### Missing hosts", ""])
+        lines.extend(["### Missing Hosts", ""])
         for ipv4_address in changes["missing_hosts"]:
             lines.append(f"- {ipv4_address}")
         lines.append("")
 
     if port_comparison_enabled and changes.get("new_open_ports"):
-        lines.extend(["### New open ports", ""])
+        lines.extend(["### New Open Ports", ""])
         for item in changes["new_open_ports"]:
             lines.append(f"- {format_change_port(item)}")
         lines.append("")
 
     if port_comparison_enabled and changes.get("closed_ports"):
-        lines.extend(["### Closed ports", ""])
+        lines.extend(["### Closed Ports", ""])
         for item in changes["closed_ports"]:
             lines.append(f"- {format_change_port(item)}")
         lines.append("")
