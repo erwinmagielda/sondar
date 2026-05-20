@@ -25,8 +25,8 @@ if errorlevel 1 (
 
 where nmap >nul 2>&1
 if errorlevel 1 (
-    echo [X] nmap was not found in PATH
-    echo [i] Install nmap or add it to PATH, then try again
+    echo [X] Nmap was not found in PATH
+    echo [i] Install Nmap or add it to PATH, then try again
     echo.
     pause
     exit /b 1

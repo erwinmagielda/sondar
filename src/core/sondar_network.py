@@ -1,13 +1,12 @@
 """
 Sondar network target detection.
 
-Detects a likely local IPv4 network target for authorised home/lab scanning.
-This module does not run scans. It only identifies and prepares a suggested
-CIDR target for the scanner to use later.
+Detects a likely local IPv4 network target for authorised lab or small-network
+scanning. This module does not run scans. It only identifies and prepares a
+suggested CIDR target for the scanner to use later.
 """
 
 import ipaddress
-import socket
 import subprocess
 
 
@@ -40,6 +39,36 @@ def is_usable_ipv4(address: str) -> bool:
         return False
 
     return True
+
+
+# ------------------------------------------------------------
+# ADAPTER DISPLAY HELPERS
+# ------------------------------------------------------------
+
+def clean_adapter_name(adapter_name: str) -> str:
+    """
+    Return a cleaner adapter name for terminal display.
+
+    Windows ipconfig headings often include prefixes such as:
+        Ethernet adapter Ethernet 2
+        Wireless LAN adapter Wi-Fi
+
+    The terminal output is cleaner when those prefixes are removed.
+    """
+    cleaned_name = adapter_name.strip()
+
+    prefixes = [
+        "Ethernet adapter ",
+        "Wireless LAN adapter ",
+        "Wi-Fi adapter ",
+        "Tunnel adapter ",
+    ]
+
+    for prefix in prefixes:
+        if cleaned_name.startswith(prefix):
+            return cleaned_name.replace(prefix, "", 1).strip()
+
+    return cleaned_name
 
 
 # ------------------------------------------------------------
@@ -99,7 +128,7 @@ def parse_ipconfig_output(output: str) -> list[dict[str, str]]:
 
                 interfaces.append(
                     {
-                        "adapter": current_adapter,
+                        "adapter": clean_adapter_name(current_adapter),
                         "ipv4_address": current_ipv4,
                         "subnet_mask": current_mask,
                         "cidr_target": cidr_target,

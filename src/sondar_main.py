@@ -19,7 +19,12 @@ from core.sondar_network import get_primary_target
 from core.sondar_parser import parse_nmap_xml
 from core.sondar_reporter import save_markdown_report
 from core.sondar_scanner import run_scan
-from utils.sondar_banner import print_main_header, print_section, print_status
+from utils.sondar_banner import (
+    print_menu_header,
+    print_section,
+    print_status,
+    print_workflow_header,
+)
 from utils.sondar_logger import setup_logger
 from utils.sondar_paths import (
     CONFIG_PATH,
@@ -39,7 +44,7 @@ from utils.sondar_paths import (
 def parse_arguments() -> argparse.Namespace:
     """Parse Sondar command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Sondar home network scanning workflow"
+        description="Sondar network scan inventory and change detection workflow"
     )
 
     parser.add_argument(
@@ -55,6 +60,20 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     return parser.parse_args()
+
+
+# ------------------------------------------------------------
+# DISPLAY HELPERS
+# ------------------------------------------------------------
+
+def display_optional_value(value: str) -> str:
+    """
+    Return a clean display value for optional configuration fields.
+    """
+    if not value:
+        return "Not configured"
+
+    return value
 
 
 # ------------------------------------------------------------
@@ -207,20 +226,26 @@ def select_scan_mode_for_run(scan_config: dict) -> str:
     profiles = scan_config.get("profiles", {})
 
     print_section("Scan Mode Selection")
-    print_status("i", f"Default Scan Mode: {default_mode}")
+    print_status("i", f"Default scan mode: {default_mode}")
     print()
 
     print("1) discovery")
     print(f"   {profiles.get('discovery', {}).get('description', '')}")
+    print()
+
     print("2) basic")
     print(f"   {profiles.get('basic', {}).get('description', '')}")
+    print()
+
     print("3) standard")
     print(f"   {profiles.get('standard', {}).get('description', '')}")
+    print()
+
     print("4) deep")
     print(f"   {profiles.get('deep', {}).get('description', '')}")
     print()
 
-    choice = input(f"Select scan mode for this run [{default_option}]: ").strip()
+    choice = input(f"Select scan mode [{default_option}]: ").strip()
 
     if choice == "":
         selected_mode = default_mode
@@ -230,7 +255,7 @@ def select_scan_mode_for_run(scan_config: dict) -> str:
         print_status("!", "Invalid option. Using default scan mode")
         selected_mode = default_mode
 
-    print_status("+", f"Selected Scan Mode: {selected_mode}")
+    print_status("+", f"Selected scan mode: {selected_mode}")
     print()
 
     return selected_mode
@@ -248,12 +273,13 @@ def print_parsed_scan_summary(parsed_scan: dict) -> None:
     host_counts = runstats.get("hosts", {})
     elapsed_seconds = runstats.get("elapsed_seconds", "Unknown")
 
-    print_status("i", f"Hosts Up: {host_counts.get('up', 0)}")
-    print_status("i", f"Hosts Down: {host_counts.get('down', 0)}")
-    print_status("i", f"Hosts Total: {host_counts.get('total', 0)}")
-    print_status("i", f"Elapsed Seconds: {elapsed_seconds}")
+    print_status("i", f"Hosts up: {host_counts.get('up', 0)}")
+    print_status("i", f"Hosts down: {host_counts.get('down', 0)}")
+    print_status("i", f"Hosts total: {host_counts.get('total', 0)}")
+    print_status("i", f"Elapsed seconds: {elapsed_seconds}")
 
     if not hosts:
+        print()
         print_status("!", "No live hosts parsed from scan output")
         return
 
@@ -264,7 +290,7 @@ def print_parsed_scan_summary(parsed_scan: dict) -> None:
         open_ports = host.get("open_ports", [])
 
         print_status("+", f"Host: {ipv4_address}")
-        print(f"    Open Ports: {len(open_ports)}")
+        print(f"    Open ports: {len(open_ports)}")
 
         for port in open_ports:
             service = port.get("service", {})
@@ -292,19 +318,19 @@ def print_change_details(changes: dict) -> None:
     """Print detailed change detection results."""
     if changes["new_hosts"]:
         print()
-        print_status("+", "New Hosts")
+        print_status("+", "New hosts")
         for ipv4_address in changes["new_hosts"]:
             print(f"    {ipv4_address}")
 
     if changes["missing_hosts"]:
         print()
-        print_status("!", "Missing Hosts")
+        print_status("!", "Missing hosts")
         for ipv4_address in changes["missing_hosts"]:
             print(f"    {ipv4_address}")
 
     if changes["new_open_ports"]:
         print()
-        print_status("+", "New Open Ports")
+        print_status("+", "New open ports")
         for item in changes["new_open_ports"]:
             port = item["port"]
             print(
@@ -315,7 +341,7 @@ def print_change_details(changes: dict) -> None:
 
     if changes["closed_ports"]:
         print()
-        print_status("!", "Closed Ports")
+        print_status("!", "Closed ports")
         for item in changes["closed_ports"]:
             port = item["port"]
             print(
@@ -325,13 +351,64 @@ def print_change_details(changes: dict) -> None:
             )
 
 
+def print_change_summary(change_result: dict, logger) -> None:
+    """
+    Print change detection output for both first-run and comparison workflows.
+    """
+    changes = change_result["changes"]
+    summary = changes["summary"]
+    port_comparison_enabled = summary.get("port_comparison_enabled", True)
+
+    if not change_result["has_previous_snapshot"]:
+        print_status("!", "Previous inventory snapshot not found")
+        print_status("i", "Current inventory stored as baseline")
+
+        if not port_comparison_enabled:
+            print_status("i", "Port change comparison: Skipped")
+            print_status(
+                "i",
+                "Reason: current snapshot did not include port scan data"
+            )
+
+        logger.info("Previous inventory snapshot not found")
+        logger.info(
+            "Port comparison enabled: %s",
+            port_comparison_enabled,
+        )
+        return
+
+    logger.info("Previous inventory: %s", change_result["previous_snapshot"])
+    logger.info("Current inventory: %s", change_result["current_snapshot"])
+    logger.info("New hosts: %s", summary["new_hosts"])
+    logger.info("Missing hosts: %s", summary["missing_hosts"])
+    logger.info("New open ports: %s", summary["new_open_ports"])
+    logger.info("Closed ports: %s", summary["closed_ports"])
+    logger.info("Port comparison enabled: %s", port_comparison_enabled)
+
+    print_status("+", "Change detection completed")
+    print_status("i", f"Previous snapshot: {change_result['previous_snapshot']}")
+    print_status("i", f"New hosts: {summary['new_hosts']}")
+    print_status("i", f"Missing hosts: {summary['missing_hosts']}")
+    print_status("i", f"New open ports: {summary['new_open_ports']}")
+    print_status("i", f"Closed ports: {summary['closed_ports']}")
+
+    if not port_comparison_enabled:
+        print_status("i", "Port change comparison: Skipped")
+        print_status(
+            "i",
+            "Reason: one or more snapshots did not include port scan data"
+        )
+
+    print_change_details(changes)
+
+
 # ------------------------------------------------------------
 # CLEAR ARTEFACTS WORKFLOW
 # ------------------------------------------------------------
 
 def run_clear_artefacts() -> int:
     """Clear generated Sondar runtime artefacts."""
-    print_main_header("Sondar - Clear Artefacts")
+    print_workflow_header("Clear Artefacts")
 
     try:
         print_section("Runtime Artefacts")
@@ -340,22 +417,23 @@ def run_clear_artefacts() -> int:
         prepare_data_directories()
         print_status("+", "Data directories ready")
 
+        print()
         print_status("*", "Clearing generated artefacts")
         removed = clear_runtime_artefacts()
         removed_count = count_removed_files(removed)
 
-        print_status("+", f"Removed files: {removed_count}")
+        print_status("+", f"Removed artefacts: {removed_count}")
 
         for artefact_type, files in removed.items():
             print_status("i", f"{artefact_type}: {len(files)}")
 
         print()
-        print_status("+", "Clear Artefacts completed")
+        print_status("+", "Clear artefacts completed")
         return 0
 
     except Exception as error:
         print()
-        print_status("X", "Clear Artefacts failed")
+        print_status("X", "Clear artefacts failed")
         print_status("X", str(error))
         return 1
 
@@ -366,7 +444,7 @@ def run_clear_artefacts() -> int:
 
 def main() -> int:
     """Run the Sondar network scan workflow."""
-    print_main_header("Sondar - Network Scan")
+    print_workflow_header("Network Scan")
 
     try:
         print_section("Paths")
@@ -391,6 +469,7 @@ def main() -> int:
         project_name = config.get("project_name", "Sondar")
         version = config.get("version", "0.1.0")
         scan_config = config.get("scan", {})
+        fallback_target = scan_config.get("fallback_target", "").strip()
 
         logger.info("Configuration loaded: %s", relative_path(CONFIG_PATH))
         logger.info("Project: %s", project_name)
@@ -398,13 +477,10 @@ def main() -> int:
 
         print_status("i", f"Project: {project_name}")
         print_status("i", f"Version: {version}")
+        print_status("i", f"Fallback target: {display_optional_value(fallback_target)}")
         print_status(
             "i",
-            f"Fallback Target: {scan_config.get('fallback_target', '')}"
-        )
-        print_status(
-            "i",
-            f"Default Scan Mode: {scan_config.get('scan_mode', 'Not configured')}"
+            f"Default scan mode: {scan_config.get('scan_mode', 'Not configured')}"
         )
         print()
 
@@ -420,12 +496,12 @@ def main() -> int:
 
         print_status("+", f"Target source: {target_details['source']}")
         print_status("i", f"Adapter: {target_details['adapter']}")
-        print_status("i", f"IPv4 Address: {target_details['ipv4_address']}")
-        print_status("i", f"Subnet Mask: {target_details['subnet_mask']}")
-        print_status("+", f"Suggested Target: {target_details['cidr_target']}")
+        print_status("i", f"IPv4 address: {target_details['ipv4_address']}")
+        print_status("i", f"Subnet mask: {target_details['subnet_mask']}")
+        print_status("+", f"Suggested target: {target_details['cidr_target']}")
 
         selected_target = confirm_scan_target(target_details, scan_config, logger)
-        print_status("+", f"Selected Target: {selected_target}")
+        print_status("+", f"Selected target: {selected_target}")
         logger.info("Confirmed scan target: %s", selected_target)
         print()
 
@@ -445,7 +521,7 @@ def main() -> int:
 
         print_status("+", "Scan completed")
         print_status("+", f"Raw scan saved: {scan_result['output_path']}")
-        print_status("i", f"Scan Mode Used: {scan_result['scan_mode']}")
+        print_status("i", f"Scan mode used: {scan_result['scan_mode']}")
         print()
 
         print_section("Parse Results")
@@ -475,9 +551,9 @@ def main() -> int:
         print_status("+", f"Inventory snapshot saved: {inventory_result['display_path']}")
         print_status(
             "i",
-            f"Live Hosts Recorded: {inventory['summary']['live_hosts_recorded']}"
+            f"Live hosts recorded: {inventory['summary']['live_hosts_recorded']}"
         )
-        print_status("i", f"Open Ports Total: {inventory['summary']['open_ports_total']}")
+        print_status("i", f"Open ports total: {inventory['summary']['open_ports_total']}")
         print()
 
         print_section("Change Detection")
@@ -488,56 +564,11 @@ def main() -> int:
             inventory_result["output_path"],
         )
 
-        if not change_result["has_previous_snapshot"]:
-            changes = change_result["changes"]
-            summary = changes["summary"]
-
-            print_status("!", "Previous inventory snapshot not found")
-            print_status("i", "Current inventory stored as baseline")
-
-            if not summary.get("port_comparison_enabled", True):
-                print_status("i", "Port Change Comparison: Skipped")
-                print_status(
-                    "i",
-                    "Reason: current snapshot did not include port scan data"
-                )
-
-            logger.info("Previous inventory snapshot not found")
-        else:
-            changes = change_result["changes"]
-            summary = changes["summary"]
-
-            logger.info("Previous inventory: %s", change_result["previous_snapshot"])
-            logger.info("Current inventory: %s", change_result["current_snapshot"])
-            logger.info("New hosts: %s", summary["new_hosts"])
-            logger.info("Missing hosts: %s", summary["missing_hosts"])
-            logger.info("New open ports: %s", summary["new_open_ports"])
-            logger.info("Closed ports: %s", summary["closed_ports"])
-            logger.info(
-                "Port comparison enabled: %s",
-                summary.get("port_comparison_enabled", True)
-            )
-
-            print_status("+", "Change detection completed")
-            print_status("i", f"Previous Snapshot: {change_result['previous_snapshot']}")
-            print_status("i", f"New Hosts: {summary['new_hosts']}")
-            print_status("i", f"Missing Hosts: {summary['missing_hosts']}")
-            print_status("i", f"New Open Ports: {summary['new_open_ports']}")
-            print_status("i", f"Closed Ports: {summary['closed_ports']}")
-
-            if not summary.get("port_comparison_enabled", True):
-                print_status("i", "Port Change Comparison: Skipped")
-                print_status(
-                    "i",
-                    "Reason: one or more snapshots did not include port scan data"
-                )
-
-            print_change_details(changes)
-
+        print_change_summary(change_result, logger)
         print()
 
         print_section("Report")
-        print_status("*", "Writing Markdown report")
+        print_status("*", "Writing report")
 
         report_result = save_markdown_report(
             project_name,
@@ -550,17 +581,17 @@ def main() -> int:
             change_result,
         )
 
-        logger.info("Markdown report saved: %s", report_result["display_path"])
+        logger.info("Report saved: %s", report_result["display_path"])
 
         print_status("+", f"Report saved: {report_result['display_path']}")
         print()
 
-        print_status("+", "Network Scan completed")
+        print_status("+", "Network scan completed")
         return 0
 
     except Exception as error:
         print()
-        print_status("X", "Network Scan failed")
+        print_status("X", "Network scan failed")
         print_status("X", str(error))
         return 1
 
@@ -571,7 +602,7 @@ def main() -> int:
 
 def print_menu() -> None:
     """Print the Sondar main menu."""
-    print_main_header("Sondar")
+    print_menu_header()
 
     print("1) Network Scan")
     print("2) Clear Artefacts")
