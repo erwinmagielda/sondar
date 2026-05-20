@@ -33,7 +33,7 @@ Sondar focuses on the workflow around network scanning rather than treating a sc
 
 ---
 
-## Screenshot Evidence
+## Screenshots
 
 The screenshots below show Sondar running end-to-end as an operator-facing workflow. They are included to show the tool operating through target selection, scan execution, inventory generation, change detection, reporting, and cleanup rather than only describing the architecture.
 
