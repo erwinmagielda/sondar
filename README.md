@@ -123,8 +123,8 @@ data/
 ├── reports/
 │   Stores generated Markdown scan reports.
 │
-└── logs/
-    Stores timestamped runtime logs.
+├── logs/
+│   Stores timestamped runtime logs.
 │
 src/
 ├── sondar_main.py
