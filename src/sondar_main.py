@@ -475,10 +475,6 @@ def main() -> int:
         print_status("i", f"Project: {project_name}")
         print_status("i", f"Version: {version}")
         print_status("i", f"Fallback: {display_optional_value(fallback_target)}")
-        print_status(
-            "i",
-            f"Default scan mode: {scan_config.get('scan_mode', 'Not configured')}"
-        )
         print()
 
         print_section("Target Selection")
