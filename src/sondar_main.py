@@ -496,6 +496,7 @@ def main() -> int:
         print_status("i", f"IPv4 address: {target_details['ipv4_address']}")
         print_status("i", f"Subnet mask: {target_details['subnet_mask']}")
         print_status("+", f"Suggested target: {target_details['cidr_target']}")
+        print()
 
         selected_target = confirm_scan_target(target_details, scan_config, logger)
         print_status("+", f"Selected target: {selected_target}")
