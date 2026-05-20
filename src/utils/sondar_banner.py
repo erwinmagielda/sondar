@@ -50,6 +50,7 @@ def print_menu_header() -> None:
     print_logo()
     print()
     print("Home Network Scan Monitor")
+    print()
     print("=" * HEADER_WIDTH)
     print()
 

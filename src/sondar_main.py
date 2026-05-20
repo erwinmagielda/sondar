@@ -266,7 +266,7 @@ def select_scan_mode_for_run(scan_config: dict) -> str:
 # ------------------------------------------------------------
 
 def print_parsed_scan_summary(parsed_scan: dict) -> None:
-    """Print a clean summary of parsed nmap scan data."""
+    """Print a clean summary of parsed Nmap scan data."""
     runstats = parsed_scan.get("runstats", {})
     hosts = parsed_scan.get("hosts", [])
 
@@ -371,10 +371,7 @@ def print_change_summary(change_result: dict, logger) -> None:
             )
 
         logger.info("Previous inventory snapshot not found")
-        logger.info(
-            "Port comparison enabled: %s",
-            port_comparison_enabled,
-        )
+        logger.info("Port comparison enabled: %s", port_comparison_enabled)
         return
 
     logger.info("Previous inventory: %s", change_result["previous_snapshot"])
@@ -425,7 +422,7 @@ def run_clear_artefacts() -> int:
         print_status("+", f"Removed artefacts: {removed_count}")
 
         for artefact_type, files in removed.items():
-            print_status("i", f"{artefact_type}: {len(files)}")
+            print(f"    {artefact_type}: {len(files)}")
 
         print()
         print_status("+", "Clear artefacts completed")
@@ -477,7 +474,7 @@ def main() -> int:
 
         print_status("i", f"Project: {project_name}")
         print_status("i", f"Version: {version}")
-        print_status("i", f"Fallback target: {display_optional_value(fallback_target)}")
+        print_status("i", f"Fallback: {display_optional_value(fallback_target)}")
         print_status(
             "i",
             f"Default scan mode: {scan_config.get('scan_mode', 'Not configured')}"
