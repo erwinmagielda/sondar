@@ -12,7 +12,11 @@ import json
 import sys
 from pathlib import Path
 
-from core.sondar_artefacts import clear_runtime_artefacts, count_removed_files
+from core.sondar_artefacts import (
+    clear_runtime_artefacts,
+    count_removed_files,
+    get_clear_targets,
+)
 from core.sondar_detector import detect_inventory_changes
 from core.sondar_inventory import save_inventory_snapshot
 from core.sondar_network import get_primary_target
@@ -400,6 +404,33 @@ def print_change_summary(change_result: dict, logger) -> None:
 
 
 # ------------------------------------------------------------
+# CLEAR ARTEFACTS DISPLAY
+# ------------------------------------------------------------
+
+def confirm_clear_artefacts() -> bool:
+    """
+    Ask the operator to confirm runtime artefact cleanup.
+
+    Returns True only when the operator types YES exactly.
+    """
+    print_status("!", "Generated artefacts will be removed")
+    print_status("i", "Targets selected:")
+
+    for target in get_clear_targets():
+        print(f"    {target}")
+
+    print()
+    response = input("Type YES to continue: ").strip()
+
+    if response == "YES":
+        return True
+
+    print()
+    print_status("!", "Clear artefacts cancelled")
+    return False
+
+
+# ------------------------------------------------------------
 # CLEAR ARTEFACTS WORKFLOW
 # ------------------------------------------------------------
 
@@ -410,6 +441,10 @@ def run_clear_artefacts() -> int:
     try:
         print_section("Runtime Artefacts")
 
+        if not confirm_clear_artefacts():
+            return 0
+
+        print()
         print_status("*", "Preparing data directories")
         prepare_data_directories()
         print_status("+", "Data directories ready")
