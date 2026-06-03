@@ -35,6 +35,28 @@ PRESERVED_FILES = {
 
 
 # ------------------------------------------------------------
+# DISPLAY HELPERS
+# ------------------------------------------------------------
+
+def get_clear_targets() -> list[str]:
+    """
+    Return human-facing artefact targets selected for cleanup.
+
+    These values are displayed before deletion so the operator can review what
+    will be affected.
+    """
+    targets = [
+        relative_path(LOGS_DIR),
+        relative_path(SCANS_DIR),
+        relative_path(REPORTS_DIR),
+        relative_path(INVENTORY_DIR),
+        "Python cache artefacts",
+    ]
+
+    return targets
+
+
+# ------------------------------------------------------------
 # CLEAR HELPERS
 # ------------------------------------------------------------
 
